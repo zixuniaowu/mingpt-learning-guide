@@ -1,0 +1,2978 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>minGPT 完整学习文档</title>
+  <link rel="stylesheet" href="learning_guide.css">
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <h2>minGPT</h2>
+  <p class="subtitle">从第一性原理理解 GPT</p>
+  <p class="subtitle"><a href="learning_guide_en.html">English version</a></p>
+  <nav>
+    <div class="nav-group">开始阅读</div>
+    <a href="#overview">0. 导读与核心思想</a>
+    <a href="#preface">前言</a>
+    <a href="#structure">项目结构</a>
+    <a href="#workflow">训练工作流</a>
+    <div class="nav-group">第一部分：基础原理</div>
+    <a href="#first-principles">1. 语言建模在干什么？</a>
+    <a href="#first-principles">2. 语言建模与学习的第一性原理</a>
+    <a href="#history">3. 序列建模的历史演进</a>
+    <a href="#tokenization">4. Tokenization 与表示</a>
+    <a href="#architecture">5. 整体架构与数据流</a>
+    <div class="nav-group">第二部分：核心架构与函数</div>
+    <a href="#attention">6. 自注意力机制</a>
+    <a href="#block">7. Transformer Block</a>
+    <a href="#gpt">8. GPT 架构全貌</a>
+    <a href="#activations">9. 激活函数总览</a>
+    <a href="#gelu">10. GELU</a>
+    <a href="#softmax">11. Softmax</a>
+    <a href="#bpe">12. BPE 分词器</a>
+    <div class="nav-group">第三部分：训练与生成</div>
+    <a href="#training">13. 训练的本质</a>
+    <a href="#generation">14. 自回归生成</a>
+    <a href="#finetuning">15. 微调</a>
+    <div class="nav-group">第四部分：实现、对比与演进</div>
+    <a href="#implementation">16. minGPT 的实现细节</a>
+    <a href="#comparisons">17. 与其他模型的对比</a>
+    <a href="#scaling">18. Scaling Laws 与涌现能力</a>
+    <a href="#position">19. 位置编码与长上下文</a>
+    <a href="#beyond">20. Transformer 的局限与现代演进</a>
+    <a href="#hallucination">21. 幻觉、对齐与未来方向</a>
+    <a href="#evaluation">22. 大模型评价体系</a>
+    <a href="#agent-engineering">23. 深度思考、长期记忆与 Coding Agent 系统</a>
+    <div class="nav-group">工具、实践与总结</div>
+    <a href="#utils">工具与配置</a>
+    <a href="#projects">经典项目解析</a>
+    <a href="#labs">动手实验</a>
+    <a href="#conclusion">结语与进阶路径</a>
+    <a href="#references">参考资料</a>
+  </nav>
+</aside>
+
+<main class="main">
+
+<!-- ===== OVERVIEW ===== -->
+<section id="overview">
+  <h1>minGPT：从第一性原理理解 GPT</h1>
+  <p class="subtitle-book">一本可执行的书，带你从零开始真正理解大语言模型的核心</p>
+
+  <div class="run-panel">
+    <div>
+      <h3>怎么“执行”这本书？</h3>
+      <p>
+        HTML 负责阅读、解释和可视化；Notebook 负责真正执行 PyTorch 代码。
+        最直接的方式是在仓库根目录启动 Jupyter，然后打开 <code>learning_guide.ipynb</code>。
+      </p>
+    </div>
+    <div class="run-actions">
+      <a class="run-button primary" href="../learning_guide.ipynb">打开 Notebook</a>
+      <a class="run-button" href="#labs">跳到动手实验</a>
+    </div>
+    <pre class="run-command"><code>pip install -e .
+jupyter lab learning_guide.ipynb</code></pre>
+    <p class="run-note">
+      普通 HTML 不能原生执行 <code>.ipynb</code>：notebook 需要 Python kernel、依赖环境和文件系统权限。
+      可以把 notebook 的代码单元嵌入 HTML 展示，但真正运行仍应交给 Jupyter、VS Code Notebook、JupyterLite/Pyodide 或后端执行服务。
+      本页的代码块可一键复制到 notebook 里运行。
+    </p>
+  </div>
+
+  <div class="callout important" style="margin:1rem 0; background:#2a3145;">
+    <strong>阅读顺序</strong><br>
+    侧边栏现在按正文的真实顺序组织：先建立语言建模和训练工作流的直觉，再进入注意力、Block、GPT 主体，最后看训练、生成、现代演进和动手实验。<br>
+    如果你是第一次读，建议按目录从上到下阅读；如果你已经懂 Transformer，可以直接跳到 <a href="#attention">自注意力机制</a>、<a href="#training">训练的本质</a> 或 <a href="#labs">动手实验</a>。
+  </div>
+  <p class="lead">
+    本书系统讲解 Andrej Karpathy 的 minGPT 项目——一个用不到 300 行核心代码实现的 GPT 模型。
+    通过第一性原理、大量具体例子、交互式图解和可运行代码，我们将深入理解：
+    语言建模是什么、Transformer 如何工作、训练的本质、以及现代大模型的来龙去脉。
+  </p>
+
+  <div class="callout important" style="margin:1.2rem 0 1.6rem">
+    <strong>本书式学习指南 · 最佳使用方式</strong><br>
+    这份文档被设计成“一边读、一边运行、一边改参数”的迷你书：<br>
+    1. 先在上方打开 <code>learning_guide.ipynb</code>。<br>
+    2. 读到带「Jupyter Cell」标记的代码卡片时，在 Notebook 里执行对应代码，观察真实输出。<br>
+    3. 对照卡片下方解释，理解输出、张量维度，以及这一步在 GPT 流程中的位置。<br>
+    4. 改一两个参数（如 <code>block_size</code>、温度、训练步数），看模型行为如何变化。
+  </div>
+
+  <h3>前置知识（不需要精通，但最好有直觉）</h3>
+  <ul>
+    <li>Python + 基础 NumPy / PyTorch 张量操作（shape、view、matmul）</li>
+    <li>一点点线性代数：矩阵乘法、转置、softmax 的含义</li>
+    <li>不用害怕数学公式——每处都有「直觉版」解释和代码对应</li>
+  </ul>
+  <p>关于“损失函数”、“梯度下降”、“反向传播”这些最核心的学习机制，本文档会在后面从第一性原理开始详细解释（见“模型是怎么学会的”一节）。你不需要提前精通。</p>
+
+  <div class="key-takeaway">
+    <strong>核心思想（贯穿全书）：</strong><br>
+    GPT 的全部工作就是：<strong>给定一串整数（token IDs）→ 预测序列中每个位置「下一个最可能出现的整数」的概率分布</strong>。<br>
+    训练时我们最大化「正确下一个 token」的对数概率；生成时我们从这个分布里一个接一个地采样。
+    几乎所有「复杂性」都来自「如何高效地在 batch 和时间维度上并行计算注意力」，而不是架构本身有多玄。
+  </div>
+
+  <div class="card-grid">
+    <div class="card">
+      <h4><span class="badge badge-blue">模型</span>mingpt/model.py</h4>
+      <p>Transformer 解码器：注意力、Block、GPT、生成</p>
+    </div>
+    <div class="card">
+      <h4><span class="badge badge-purple">分词</span>mingpt/bpe.py</h4>
+      <p>Byte Pair Encoding，文本 ↔ 整数序列</p>
+    </div>
+    <div class="card">
+      <h4><span class="badge badge-green">训练</span>mingpt/trainer.py</h4>
+      <p>通用 PyTorch 训练循环，与 GPT 无关</p>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>核心理念：</strong>输入一串 token 索引 → Transformer 处理 → 输出下一个 token 的概率分布。
+    绝大多数"复杂度"来自高效的批处理（跨样本 + 跨序列长度），而非架构本身。
+  </div>
+
+  <h3>环境搭建</h3>
+<pre><code>pip install torch numpy regex requests
+pip install -e .          # 安装 minGPT 包
+pip install transformers  # 加载预训练 GPT-2 权重时需要</code></pre>
+</section>
+
+
+
+
+
+
+
+<!-- ===== GENERATION ===== -->
+
+
+<!-- ===== PREFACE ===== -->
+<section id="preface">
+  <div class="chapter-header">
+    <h2>前言</h2>
+  </div>
+
+  <p>2017 年，Google 发表了论文《Attention Is All You Need》，提出了 Transformer 架构。那一刻，很多人还没有意识到，这将彻底改变自然语言处理乃至整个人工智能领域。</p>
+
+  <p>仅仅两年后，OpenAI 发布了 GPT-2，用一个纯粹的“猜下一个词”的模型，在几乎没有任务特定训练的情况下，展现出了惊人的能力：写文章、翻译、问答、编程…… 人们开始意识到：<strong>规模 + 简单目标 + 海量数据</strong>，可能就是通往通用智能的一条路径。</p>
+
+  <p>2020 年，GPT-3 进一步证明了这一点。2022 年底，ChatGPT 的横空出世，让全世界都感受到了这种技术的力量。</p>
+
+  <p>但在这一切的背后，核心机制其实非常简单：一个自回归的 Transformer 解码器 + 下一个 token 预测 + 梯度下降。</p>
+
+  <p>minGPT 就是 Andrej Karpathy 为了让任何人（尤其是学生和研究者）都能真正理解这个核心而写的极简实现。它只有几百行代码，却完整复现了 GPT 的所有关键思想。</p>
+
+  <p>本书的目标不是让你“会用”大模型，而是让你<strong>真正理解</strong>它为什么能工作、它的局限在哪里、以及它与其他架构的本质区别。</p>
+
+  <p>我们会从第一性原理出发，一步步拆解：
+  <ul>
+    <li>语言建模到底在做什么？</li>
+    <li>一个模型是怎么“学会”预测的？</li>
+    <li>注意力机制的直觉和数学本质是什么？</li>
+    <li>为什么是 GPT 而不是其他架构主导了今天的大模型时代？</li>
+    <li>Transformer 有哪些根本性局限？未来的路在哪里？</li>
+  </ul>
+  </p>
+
+  <p>整本书都配有可运行的代码示例、交互式可视化，以及大量来自真实实现的细节。建议你一边阅读，一边在 Jupyter Notebook 中运行对应的代码。</p>
+
+  <p>希望读完这本书后，当你再看到一个几百亿参数的模型时，不再感到神秘，而能清晰地看到它不过是一个“非常大的、用梯度下降训练的、猜下一个词的 Transformer”。</p>
+
+  <p class="note">本书面向有一定编程和数学基础（高中或大一水平）的读者。所有概念都会从第一性原理出发，用具体例子和直觉类比讲解。</p>
+</section>
+
+<!-- ===== STRUCTURE ===== -->
+<section id="structure">
+  <h2>项目结构</h2>
+<pre><code>minGPT/
+├── mingpt/                  # 核心库（4 个模块）
+│   ├── model.py             # Transformer 架构 (~735 行，含教学注释)
+│   ├── bpe.py               # BPE 分词器 + BPETokenizer 封装
+│   ├── trainer.py           # 训练循环
+│   └── utils.py             # CfgNode 配置、随机种子、日志
+├── projects/
+│   ├── adder/               # 训练 GPT 做加法
+│   └── chargpt/             # 字符级语言模型
+├── demo.ipynb               # 排序任务入门示例
+├── generate.ipynb           # 加载 GPT-2 生成文本
+├── learning_guide.ipynb     # Jupyter 学习笔记本
+├── tests/                   # 单元测试（HF 权重对齐验证）
+└── setup.py</code></pre>
+
+  <h3>公开 API（mingpt/__init__.py）</h3>
+<pre><code>from mingpt import GPT, Trainer, BPETokenizer, set_seed, CfgNode</code></pre>
+</section>
+
+<!-- ===== WORKFLOW ===== -->
+<section id="workflow">
+  <h2>训练工作流</h2>
+  <p>使用 minGPT 训练任何任务，只需四步：</p>
+
+  <div class="flow">
+    <span class="flow-step">1. 定义 Dataset</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step">2. 创建 GPT 模型</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step">3. 配置 Trainer</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step">4. trainer.run()</span>
+  </div>
+
+<pre><code>from mingpt.model import GPT
+from mingpt.trainer import Trainer
+
+# 1. Dataset 必须返回 (x, y) 两个 LongTensor
+#    x: 输入序列, y: 目标序列（来自原序列错开一位）
+#    所有整数在 [0, vocab_size) 范围内
+
+# 2. 模型
+model_config = GPT.get_default_config()
+model_config.model_type = 'gpt-nano'   # 或 gpt2 等
+model_config.vocab_size = 100
+model_config.block_size = 64
+model = GPT(model_config)
+
+# 3. 训练器
+train_config = Trainer.get_default_config()
+train_config.max_iters = 1000
+train_config.batch_size = 32
+trainer = Trainer(train_config, model, train_dataset)
+trainer.run()
+
+# 4. 生成
+output = model.generate(prompt_ids, max_new_tokens=50)</code></pre>
+
+  <h3>1. 定义 Dataset —— 从第一性原理理解“下一个词预测”的数据形式</h3>
+
+  <p>训练的起点是数据。模型不会“魔法般”学会东西，它只能通过大量例子知道：<strong>给定前面的 token，正确的下一个 token 应该是什么</strong>。</p>
+
+  <p>语言建模用的是<strong>自监督学习</strong>：不需要人工标注答案，因为一句话本身就能产生答案。只要把同一串 token 向右错开一格，就得到了训练目标。</p>
+
+  <h4>核心思想：输入和答案只差一格</h4>
+  <p>假设有一串数字序列：<code>[10, 20, 30, 40, 50, 60]</code>。GPT 要学的不是“记住这串数字”，而是：</p>
+  <p><strong>看到 10，预测 20；看到 10,20，预测 30；看到 10,20,30，预测 40……</strong></p>
+  <p>用人类直觉写出来，就是很多个小问题：</p>
+
+  <table>
+    <tr><th>例子编号</th><th>模型看到的 x（输入）</th><th>正确答案 y（目标）</th></tr>
+    <tr><td>1</td><td>[10]</td><td>20</td></tr>
+    <tr><td>2</td><td>[10, 20]</td><td>30</td></tr>
+    <tr><td>3</td><td>[10, 20, 30]</td><td>40</td></tr>
+    <tr><td>...</td><td>...</td><td>...</td></tr>
+  </table>
+
+  <p>但代码不会把这些小问题一条条单独喂给模型。为了并行训练，Dataset 会一次返回两条<strong>等长</strong>序列：</p>
+  <ul>
+    <li><code>x</code>：模型看到的 token 序列</li>
+    <li><code>y</code>：正确答案序列，等于原序列向左移动一格，也就是“每个位置的下一个 token”</li>
+  </ul>
+
+  <h4>最简单的例子（block_size = 5）</h4>
+  <p>如果 <code>block_size = 5</code>，Dataset 会先取 <code>block_size + 1</code> 个 token，也就是 6 个 token：</p>
+<pre><code>chunk = [10, 20, 30, 40, 50, 60]
+x = chunk[:-1]  # [10, 20, 30, 40, 50]
+y = chunk[1:]   # [20, 30, 40, 50, 60]</code></pre>
+
+  <p>于是一次训练样本其实长这样：</p>
+
+  <table>
+    <tr><th>位置</th><th>0</th><th>1</th><th>2</th><th>3</th><th>4</th></tr>
+    <tr><td><strong>x（输入）</strong></td><td>10</td><td>20</td><td>30</td><td>40</td><td>50</td></tr>
+    <tr><td><strong>y（目标）</strong></td><td>20</td><td>30</td><td>40</td><td>50</td><td>60</td></tr>
+  </table>
+
+  <p>这张表的意思是：</p>
+  <ul>
+    <li>在位置 0：看到 10，要预测 20</li>
+    <li>在位置 1：看到 10,20，要预测 30</li>
+    <li>在位置 2：看到 10,20,30，要预测 40</li>
+    <li>在位置 3：看到 10,20,30,40，要预测 50</li>
+    <li>在位置 4：看到 10,20,30,40,50，要预测 60</li>
+  </ul>
+
+  <p>注意：模型输入的 <code>x</code> 里没有 60，但 <code>y</code> 里有 60，因为 60 正是最后一个位置要预测的答案。这就是“下一个 token 预测”的本质。</p>
+
+  <div class="note">
+    <strong>一句话记住：</strong>Dataset 不是给模型“问题和答案两段文本”，而是把同一段文本错开一格：<code>x = 前 N 个 token</code>，<code>y = 后 N 个 token</code>。模型在每个位置都猜下一个 token，loss 负责告诉它猜得对不对。
+  </div>
+
+  <h4>为什么 y 里会出现 -1？—— adder 项目的实际用法（深入拆解）</h4>
+  <p>上面那个简单例子是“纯生成”任务。但很多真实任务是“先看问题，再给出答案”。</p>
+
+  <p>以 <code>projects/adder</code> 为例，这是 Karpathy 设计的一个极简实验：让 GPT 从零学会做 n 位数加法。</p>
+
+  <p><strong>编码方式（以 2 位数为例）</strong></p>
+  <p>问题 85 + 50 = 135 被编码成字符串 <code>"8550531"</code>（长度 7）：</p>
+  <ul>
+    <li>前 2 位：被加数 85 → 8,5</li>
+    <li>中间 2 位：加数 50 → 5,0</li>
+    <li>最后 3 位：结果 135 反向编码 → 5,3,1（个位、十位、百位）</li>
+  </ul>
+  <p>注意：真实代码里没有 <code>+</code>，也没有 <code>=</code> 这个分隔符。模型只看到一串数字：<code>8 5 5 0 5 3 1</code>。</p>
+
+  <p>构造 Dataset 时：</p>
+  <ul>
+    <li><code>render</code> = [8,5,5,0,5,3,1]（完整字符串）</li>
+    <li><code>x</code> = [8,5,5,0,5,3]（去掉最后一位，因为没有下一个位置再用它预测）</li>
+    <li><code>y</code> = [5,5,0,5,3,1]（<code>render</code> 向左错开一格，也就是每个位置的“下一个 token”）</li>
+  </ul>
+
+  <p>但我们<strong>只想让模型在“输出答案”的位置上学习</strong>，前面的“读题”位置不应该产生 loss。</p>
+
+  <p>因此代码把 <code>y</code> 的前 3 个位置设成特殊值 <code>-1</code>：</p>
+
+  <table>
+    <tr><th>位置</th><th>0</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr>
+    <tr><td><strong>x</strong></td><td>8</td><td>5</td><td>5</td><td>0</td><td>5</td><td>3</td></tr>
+    <tr><td>模型此处要预测的原始 y</td><td>5</td><td>5</td><td>0</td><td>5</td><td>3</td><td>1</td></tr>
+    <tr><td><strong>屏蔽后的 y</strong></td><td><span style="color:#f87171">-1</span></td><td><span style="color:#f87171">-1</span></td><td><span style="color:#f87171">-1</span></td><td>5</td><td>3</td><td>1</td></tr>
+  </table>
+
+  <p><strong>为什么一定要反向编码结果？</strong></p>
+  <p>反向编码和 <code>-1</code> 屏蔽不是一回事：</p>
+  <ul>
+    <li><strong><code>-1</code> 屏蔽</strong>：决定哪些位置参与 loss。它的作用是“只训练答案部分”。</li>
+    <li><strong>反向编码</strong>：决定答案数字的生成顺序。它的作用是“让模型按加法算法的自然顺序输出答案”。</li>
+  </ul>
+  <p>人做竖式加法时，是从右往左算的：先个位，再十位，再百位，因为进位是从低位传到高位的。</p>
+  <p>对 <code>85 + 50 = 135</code> 来说：</p>
+  <ul>
+    <li>个位：5 + 0 = 5，所以第一个应该输出 5</li>
+    <li>十位：8 + 5 = 13，所以第二个输出 3，并产生进位 1</li>
+    <li>百位：输出进位 1</li>
+  </ul>
+  <p>所以答案按计算顺序是 <code>5,3,1</code>。如果正向输出 <code>1,3,5</code>，模型一上来就必须预测最高位 1；但这个 1 来自后面低位计算产生的进位。对一个只能从左到右生成的 GPT 来说，这会让任务难很多。</p>
+  <div class="note">
+    <strong>一句话：</strong><code>-1</code> 是为了“在哪些位置学习”；反向编码是为了“按什么顺序学习答案”。反向后，第一个有效 loss 位置就是个位答案 5，正好对应加法最先能算出来的那一位。
+  </div>
+
+<p><strong>图：Adder 数据构造与梯度屏蔽示意图（看图说话版）</strong></p>
+<div class="diagram" style="background:#252c3d; padding:12px; border-radius:6px; text-align:center; font-size:0.9rem;">
+  <svg width="620" height="180" viewBox="0 0 620 180" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="12">
+    <!-- x row -->
+    <text x="20" y="35" fill="#9aa3b8">x（模型看到的内容）</text>
+    <rect x="20" y="45" width="55" height="32" rx="4" fill="#2f364a" stroke="#6c9eff"/><text x="47" y="65" fill="#e8eaf0" text-anchor="middle">8</text>
+    <rect x="80" y="45" width="55" height="32" rx="4" fill="#2f364a" stroke="#6c9eff"/><text x="107" y="65" fill="#e8eaf0" text-anchor="middle">5</text>
+    <rect x="140" y="45" width="55" height="32" rx="4" fill="#2f364a" stroke="#6c9eff"/><text x="167" y="65" fill="#e8eaf0" text-anchor="middle">5</text>
+    <rect x="200" y="45" width="55" height="32" rx="4" fill="#2f364a" stroke="#6c9eff"/><text x="227" y="65" fill="#e8eaf0" text-anchor="middle">0</text>
+    <rect x="260" y="45" width="55" height="32" rx="4" fill="#2f364a" stroke="#6c9eff"/><text x="287" y="65" fill="#e8eaf0" text-anchor="middle">5</text>
+    <rect x="320" y="45" width="55" height="32" rx="4" fill="#14352a" stroke="#34d399"/><text x="347" y="65" fill="#e8eaf0" text-anchor="middle">3</text>
+
+    <!-- y row with -1 -->
+    <text x="20" y="105" fill="#9aa3b8">y（正确答案，只有答案部分参与损失）</text>
+    <rect x="20" y="115" width="55" height="32" rx="4" fill="#3a2a1f" stroke="#f87171"/><text x="47" y="135" fill="#f87171" text-anchor="middle">-1</text>
+    <rect x="80" y="115" width="55" height="32" rx="4" fill="#3a2a1f" stroke="#f87171"/><text x="107" y="135" fill="#f87171" text-anchor="middle">-1</text>
+    <rect x="140" y="115" width="55" height="32" rx="4" fill="#3a2a1f" stroke="#f87171"/><text x="167" y="135" fill="#f87171" text-anchor="middle">-1</text>
+    <rect x="200" y="115" width="55" height="32" rx="4" fill="#14352a" stroke="#34d399"/><text x="227" y="135" fill="#e8eaf0" text-anchor="middle">5</text>
+    <rect x="260" y="115" width="55" height="32" rx="4" fill="#14352a" stroke="#34d399"/><text x="287" y="135" fill="#e8eaf0" text-anchor="middle">3</text>
+    <rect x="320" y="115" width="55" height="32" rx="4" fill="#14352a" stroke="#34d399"/><text x="347" y="135" fill="#e8eaf0" text-anchor="middle">1</text>
+
+    <text x="20" y="170" fill="#34d399" font-size="11">只有绿色部分会产生梯度并更新参数（红色 -1 部分被完全屏蔽）</text>
+  </svg>
+</div>
+
+<p><strong>看这张图就能明白核心：</strong></p>
+<ul>
+  <li>上方整行是模型真正“读到”的 x。</li>
+  <li>下方只有后面三个绿色格子是有效的 y（模型真正需要预测的答案部分）。</li>
+  <li>前面三个红色 -1 的位置，损失为 0，梯度为 0 —— 模型在这里无论猜什么都不会被惩罚。</li>
+  <li>这就强迫模型把学习能力集中在“如何从问题计算出答案”上，而不是去记忆“问题长什么样”。</li>
+</ul>
+
+  <p><strong>图：Adder 完整训练一步的数据流（看图说话）</strong></p>
+  <div class="diagram" style="background:#252c3d; padding:10px; border-radius:6px; font-size:0.85rem;">
+    <h4>在训练的一步中到底发生了什么？（更细的拆解）</h4>
+  <p>当 Trainer 取到一个 adder 的 batch 时，模型会：</p>
+  <ol>
+    <li>看到 x（完整问题 + 已经出现的反向答案前缀）。</li>
+    <li>在每一个位置输出对“下一个 token”的预测（logits）。</li>
+    <li>只在 y 不是 -1 的位置计算交叉熵损失（即只在答案的 3 个位置计算）。</li>
+    <li>反向传播时，梯度只从那 3 个位置回传，更新模型参数，让它下次在类似问题上能更准地预测答案的每一位。</li>
+  </ol>
+
+  <p>经过成千上万这样的例子后，模型内部的“旋钮”就被调成了一个能做加法的加法器，而不是一个死记硬背的查找表。</p>
+
+  <h4>如果我们把结果正向写会怎样？（对比实验思维）</h4>
+  <p>假如我们把结果正向写（135 → 1,3,5），模型在预测第一个数字（1）时，还不知道个位是否有进位。</p>
+  <p>它必须同时学会“预测 + 记住进位”两个事情，学习难度大幅上升，收敛会慢很多，甚至学不会。</p>
+  <p>反向写把“进位”这个信息自然地放在了预测顺序的最前面，大大降低了学习难度。这就是好的数据构造能带来的巨大帮助。</p>
+
+  <h4>与标准语言建模的对比</h4>
+  <p>在普通的 chargpt（字符级语言模型）中，我们通常对整个序列都计算损失（除了最后一个位置）。</p>
+  <p>因为语言建模的“问题”和“答案”是连续的，没有明显的“读题”和“答题”分离。</p>
+  <p>而在 adder 这种“算法性”任务中，我们必须人为制造这种分离，否则模型学到的就不是算法，而是记忆。</p>
+
+  <p>这个思想在今天的大模型时代依然非常重要：我们通过精心构造的指令数据 + 只监督回答部分的损失，来让模型学会“遵循指令”而不是“复述指令”。</p>
+  </div>
+</section>
+
+<!-- ===== FOUNDATIONS (NEW BOOK CHAPTER) ===== -->
+<section id="first-principles">
+  <div class="chapter-header">
+    <h2>第一部分：语言建模与表示基础（最重要的一章）</h2>
+    <div class="subtitle">我们从零开始，通过一个具体的例子，把「文本 → 数字 → 模型思考 → 预测下一个词」讲清楚。</div>
+  </div>
+
+
+
+  <h3>1. 语言建模到底在干什么？——「永远在猜下一个字」的游戏</h3>
+  <p>你小时候有没有玩过「接龙」游戏？老师说「今天天气很好，」你马上接「我」或者「适合」或者「出去玩」。</p>
+  <p>GPT 做的就是这件事，而且它要做到极致：给定前面所有的字，它要给「下一个最可能出现的字」打分。</p>
+  <p>它不是在「理解意思」，而是在海量文本里学到了统计规律：「在『我喜欢』后面，『猫』出现的次数比『飞机』多得多」。</p>
+
+  <p><strong>用一个具体例子走一遍</strong></p>
+  <p>我们用一句话：<strong>「我 喜欢 猫」</strong>（中文为了方便先用英文 "I like cats" 演示，因为 GPT-2 用英文 BPE）</p>
+  <p>模型的任务是：</p>
+  <ul>
+    <li>看到「I」 → 猜下一个可能是 like / am / hate ...</li>
+    <li>看到「I like」 → 猜下一个可能是 cats / dogs / pizza ...</li>
+    <li>看到「I like cats」 → 结束或猜句号</li>
+  </ul>
+  <p>训练时，我们把正确答案告诉它（监督学习），让它越来越准。</p>
+
+  <h2>2. 语言建模与学习的第一性原理</h2>
+
+  <p>到目前为止，我们只说了“模型的任务是猜下一个词”。但它是怎么从“完全不会猜”变成“会猜”的呢？</p>
+  <p>这涉及到 AI 最核心的三个基本机制。我们从第一性原理开始讲。</p>
+
+  <h4>任何学习系统只有三件事</h4>
+  <p>不管是人学习打篮球，还是神经网络学习猜词，本质上都只有三步循环：</p>
+  <ol>
+    <li><strong>做一个猜测</strong>（前向传播 Forward）</li>
+    <li><strong>衡量这个猜测有多离谱</strong>（计算损失 Loss）</li>
+    <li><strong>根据离谱程度，稍微改一改内部的“旋钮”</strong>，让下一次猜得更好（梯度下降 + 参数更新）</li>
+  </ol>
+
+  <p>模型内部有成千上万个“旋钮”（就是那些权重参数）。训练就是反复拧这些旋钮，让它在同样的问题上犯更少的错误。</p>
+
+  <h4>损失函数：错误评分器</h4>
+  <p>损失函数（Loss Function）就是“错误评分器”。它的唯一工作是：给当前猜测打一个分数，分数越低越好。</p>
+
+  <p>对于“猜下一个词”这种任务，我们用的是<strong>交叉熵损失（Cross Entropy Loss）</strong>。</p>
+
+  <p><strong>它的直觉非常简单：</strong></p>
+  <p>模型会对每个可能的词给出一个概率（加起来等于 1）。如果它给“正确答案”的概率很高，损失就很小；如果给正确答案的概率很低（它很“惊讶”），损失就很大。</p>
+
+  <p>下面是一个极简的例子（假设只有 3 个可能的词 A、B、C，正确答案是 B）：</p>
+
+  <table>
+    <tr><th>模型给出的概率</th><th>对正确答案 B 的信心</th><th>损失大小（直觉）</th></tr>
+    <tr><td>[0.1, 0.8, 0.1]</td><td>很高（80% 认为 B）</td><td>很小 ✓</td></tr>
+    <tr><td>[0.3, 0.4, 0.3]</td><td>中等</td><td>中等</td></tr>
+    <tr><td>[0.6, 0.2, 0.2]</td><td>很低（只给 B 20%）</td><td>很大 ✗</td></tr>
+  </table>
+
+  <p>在 minGPT 的代码里，这一行就是计算损失：</p>
+<pre><code>loss = F.cross_entropy(
+    logits.view(-1, vocab_size),   # 模型的原始打分
+    targets.view(-1),              # 正确答案的 token ID
+    ignore_index=-1
+)</code></pre>
+
+  <p>它内部会先把 logits 变成概率（softmax），然后计算“正确答案的概率越低，损失越高”。</p>
+
+  <h4>梯度下降：怎么知道该怎么改旋钮？</h4>
+  <p>现在我们知道当前有多错（损失值）。问题来了：模型里有几十万甚至上亿个旋钮，到底该拧哪一个、往哪个方向拧？</p>
+
+  <p>答案是<strong>梯度（Gradient）</strong>。</p>
+
+  <p>你可以把损失想象成一座山（山越高 = 错误越大）。我们站在山坡上，想走到山谷（损失 = 0）。</p>
+
+  <p>梯度就是“在你现在站的位置，如果把某个旋钮往左拧一点，山是变高还是变低？变高多少？”</p>
+
+  <p>梯度下降的做法就是：<strong>每次都朝让山变低（损失下降）最快的方向，拧一小步</strong>。</p>
+
+  <p>这一小步的大小由学习率（learning_rate）控制。拧得太猛容易冲过山谷，拧得太小则要走很久。</p>
+
+  <h4>经典可视化：损失地形图（Loss Landscape）</h4>
+  <p>网上最经典的梯度下降示意图，就是把损失画成一个“碗”或“山谷”的三维曲面（或二维等高线图），一个小球（代表当前参数）在上面滚动。</p>
+  <p>下面是一个可交互的简化动图（2D 版本，便于理解核心思想）。你可以调整学习率，看看小球怎么“滚下山”：</p>
+
+  <div class="diagram" style="text-align:center; background:#252c3d; padding:1rem; border-radius:8px;">
+    <canvas id="gd-canvas" width="600" height="400" style="border:1px solid #3c4459; background:#1c2230; border-radius:4px;"></canvas>
+    <div style="margin-top:0.8rem; display:flex; gap:1rem; justify-content:center; flex-wrap:wrap; font-size:0.9rem;">
+      <label>学习率 (LR): <input type="range" id="gd-lr" min="0.01" max="0.5" step="0.01" value="0.1"> <span id="gd-lr-val">0.10</span></label>
+      <label>动量 (Momentum): <input type="range" id="gd-mom" min="0" max="0.95" step="0.05" value="0"> <span id="gd-mom-val">0.00</span></label>
+      <button id="gd-step">单步 (Step)</button>
+      <button id="gd-run">连续运行 (Run/Pause)</button>
+      <button id="gd-reset">重置位置</button>
+    </div>
+    <p style="font-size:0.85rem; color:#9aa3b8; margin-top:0.4rem;">
+      红色曲线 = 损失函数（简单二次函数 f(x)=x²）。蓝色点 = 当前参数位置。绿色箭头 = 梯度方向（指向损失增加最快的方向）。每次点击“单步”或运行，点会沿负梯度方向移动。
+      <br>小 LR：慢慢滚下山（稳定但慢）。大 LR：可能冲过谷底震荡。加动量后路径更平滑，像小球有惯性。
+    </p>
+  </div>
+
+  <p><strong>看这张动图就能直观理解梯度下降：</strong></p>
+  <ul>
+    <li><strong>红色曲线</strong> = 损失函数（抛物线，越往中间越低 = 损失越小）。这就是模型当前“有多错”。</li>
+    <li><strong>红色小球</strong> = 你当前的参数位置（现实中是几十亿维，这里简化成 1D）。</li>
+    <li><strong>绿色箭头</strong> = 梯度方向（损失在这个点上升最快的方向）。我们永远朝相反方向（下山）走。</li>
+    <li>拖动左边的“学习率”滑块，立刻能看到小球的行为变化：太小 = 慢慢爬；太大 = 冲过谷底乱晃。</li>
+    <li>打开右边的“动量”，小球会带着惯性，路径明显更稳、更快（这就是为什么现代优化器要加 momentum）。</li>
+  </ul>
+
+  <p>在真实 GPT 训练中，损失地形是几亿维的“超级复杂山脉”。AdamW 就是在不同维度上自适应调“步长”和“惯性”，让小球能更快更稳地滚到谷底。</p>
+
+  <p>这就是为什么我们说“梯度下降 = 让参数往损失下降最快的方向小步移动”。反向传播（loss.backward()）负责算出这个“最快下降方向”（梯度），optimizer.step() 负责真正移动参数。</p>
+
+  <h4>反向传播：自动算梯度</h4>
+  <p>手动算每个旋钮的梯度几乎不可能。幸运的是，PyTorch 提供了 <code>loss.backward()</code>。</p>
+
+  <p>它使用“链式法则”（Chain Rule）从后往前自动计算：这个错误到底要怪谁？怪前面哪一层？怪哪个参数？</p>
+
+  <p>这个从输出错误一路“倒推责任”的过程，就叫<strong>反向传播（Backpropagation）</strong>。</p>
+
+  <p>想象一个非常简单的神经网络只有两层：</p>
+  <p>输入 → 隐藏层（带权重 W1） → 输出层（带权重 W2） → 损失</p>
+
+  <p>当我们得到损失后，反向传播会先问：“输出层的错误主要怪谁？”（怪 W2 比较多）。</p>
+  <p>然后把这个“错误信号”传给隐藏层，再问：“隐藏层的错误主要怪谁？”（怪 W1）。</p>
+  <p>最后把所有错误信号变成每个权重的梯度。</p>
+
+  <p><strong>图：反向传播“倒推责任”示意图</strong></p>
+  <div class="diagram" style="background:#252c3d; padding:10px; border-radius:6px;">
+    <svg width="580" height="140" viewBox="0 0 580 140" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="11">
+      <!-- forward -->
+      <text x="30" y="25" fill="#9aa3b8">前向传播（计算预测）</text>
+      <rect x="30" y="35" width="90" height="28" rx="4" fill="#2f364a" stroke="#6c9eff"/><text x="75" y="53" fill="#e8eaf0" text-anchor="middle">输入 x</text>
+      <rect x="140" y="35" width="90" height="28" rx="4" fill="#2f364a" stroke="#6c9eff"/><text x="185" y="53" fill="#e8eaf0" text-anchor="middle">隐藏层 W1</text>
+      <rect x="250" y="35" width="90" height="28" rx="4" fill="#2f364a" stroke="#6c9eff"/><text x="295" y="53" fill="#e8eaf0" text-anchor="middle">输出层 W2</text>
+      <rect x="360" y="35" width="90" height="28" rx="4" fill="#2f364a" stroke="#6c9eff"/><text x="405" y="53" fill="#e8eaf0" text-anchor="middle">预测</text>
+      <rect x="470" y="35" width="90" height="28" rx="4" fill="#14352a" stroke="#34d399"/><text x="515" y="53" fill="#e8eaf0" text-anchor="middle">损失</text>
+      <path d="M120 49 L140 49" stroke="#6c9eff" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <path d="M230 49 L250 49" stroke="#6c9eff" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <path d="M340 49 L360 49" stroke="#6c9eff" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <path d="M450 49 L470 49" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+      <!-- backward -->
+      <text x="30" y="95" fill="#9aa3b8">反向传播（倒推责任）</text>
+      <rect x="470" y="105" width="90" height="28" rx="4" fill="#14352a" stroke="#34d399"/><text x="515" y="123" fill="#e8eaf0" text-anchor="middle">损失</text>
+      <rect x="360" y="105" width="90" height="28" rx="4" fill="#2f364a" stroke="#f87171"/><text x="405" y="123" fill="#e8eaf0" text-anchor="middle">输出层 W2</text>
+      <rect x="250" y="105" width="90" height="28" rx="4" fill="#2f364a" stroke="#f87171"/><text x="295" y="123" fill="#e8eaf0" text-anchor="middle">隐藏层 W1</text>
+      <rect x="140" y="105" width="90" height="28" rx="4" fill="#2f364a" stroke="#f87171"/><text x="185" y="123" fill="#e8eaf0" text-anchor="middle">输入 x</text>
+      <path d="M470 119 L450 119" stroke="#f87171" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <path d="M360 119 L340 119" stroke="#f87171" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <path d="M250 119 L230 119" stroke="#f87171" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+      <text x="30" y="155" fill="#f87171" font-size="10">红色箭头 = 错误信号从后往前流动</text>
+    </svg>
+  </div>
+
+  <p><strong>看这张图：</strong>损失从最右边产生后，错误信号像“倒推责任”一样一级一级往回传。每一层都要承担一部分责任，最终变成对每个权重的梯度。</p>
+
+  <p>这就是为什么我们说“梯度是误差对参数的偏导数”——它精确量化了“如果我把这个参数改动一点点，损失会变多少”。</p>
+
+  <h4>在实际训练循环里是怎么运作的？</h4>
+  <p>看一下 Trainer 里的核心循环（我们后面会有完整的小实验让你跑）：</p>
+<pre><code>logits, loss = model(x, y)            # 1. 前向：做猜测 + 计算有多错
+model.zero_grad(set_to_none=True)
+loss.backward()                       # 2. 反向：算出每个旋钮该怎么拧
+optimizer.step()                      # 3. 更新：真正拧这些旋钮
+</code></pre>
+
+  <p><strong>图：完整训练循环的可视化</strong></p>
+  <div class="diagram" style="background:#252c3d; padding:10px; border-radius:6px;">
+    <svg width="620" height="220" viewBox="0 0 620 220" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="12">
+      <defs>
+        <marker id="tc-arr" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#6c9eff"/></marker>
+        <marker id="tc-arr2" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#34d399"/></marker>
+      </defs>
+      <rect x="10" y="30" width="130" height="60" rx="8" fill="#2f364a" stroke="#6c9eff" stroke-width="2"/>
+      <text x="75" y="55" text-anchor="middle" fill="#6c9eff" font-weight="bold">1. 前向传播</text>
+      <text x="75" y="75" text-anchor="middle" fill="#9aa3b8" font-size="11">model(x, y) &rarr; loss</text>
+      <rect x="170" y="30" width="130" height="60" rx="8" fill="#2f364a" stroke="#a78bfa" stroke-width="2"/>
+      <text x="235" y="55" text-anchor="middle" fill="#a78bfa" font-weight="bold">2. 梯度清零</text>
+      <text x="235" y="75" text-anchor="middle" fill="#9aa3b8" font-size="11">model.zero_grad()</text>
+      <rect x="330" y="30" width="130" height="60" rx="8" fill="#2f364a" stroke="#f87171" stroke-width="2"/>
+      <text x="395" y="55" text-anchor="middle" fill="#f87171" font-weight="bold">3. 反向传播</text>
+      <text x="395" y="75" text-anchor="middle" fill="#9aa3b8" font-size="11">loss.backward()</text>
+      <rect x="490" y="30" width="120" height="60" rx="8" fill="#2f364a" stroke="#fb923c" stroke-width="2"/>
+      <text x="550" y="55" text-anchor="middle" fill="#fb923c" font-weight="bold">4. 更新参数</text>
+      <text x="550" y="75" text-anchor="middle" fill="#9aa3b8" font-size="11">optimizer.step()</text>
+      <path d="M140 60 L170 60" stroke="#6c9eff" stroke-width="2" marker-end="url(#tc-arr)"/>
+      <path d="M300 60 L330 60" stroke="#a78bfa" stroke-width="2" marker-end="url(#tc-arr)"/>
+      <path d="M460 60 L490 60" stroke="#f87171" stroke-width="2" marker-end="url(#tc-arr)"/>
+      <path d="M550 90 L550 140 L75 140 L75 90" stroke="#34d399" stroke-width="2" stroke-dasharray="6,4" fill="none" marker-end="url(#tc-arr2)"/>
+      <text x="310" y="165" text-anchor="middle" fill="#34d399" font-size="11">循环直到收敛（数千到数百万次迭代）</text>
+      <text x="310" y="185" text-anchor="middle" fill="#9aa3b8" font-size="10">参数逐渐向损失更低的位置移动</text>
+      <text x="310" y="205" text-anchor="middle" fill="#9aa3b8" font-size="10">每次迭代计算出"下山方向"（梯度）</text>
+    </svg>
+  </div>
+
+  <p>重复这个循环几千次，模型内部的旋钮就会慢慢调整到让它在训练数据上猜得越来越准的位置。</p>
+
+  <div class="key-takeaway">
+    <strong>第一性原理总结：</strong><br>
+    训练 = 不断重复「猜测 → 打分（损失）→ 找下降最快的方向（梯度）→ 拧一小步（更新参数）」。<br>
+    损失函数告诉你“现在有多错”，梯度下降告诉你“该往哪里改”，反向传播让这个过程能自动进行。
+  </div>
+
+  <p>现在你已经理解了“学习”最本质的三个零件。后面当我们看到具体代码时，会不断回到这三个概念。</p>
+
+</section>
+
+<!-- ===== HISTORY CHAPTER ===== -->
+<section id="history">
+  <div class="chapter-header">
+    <h2>3. 序列建模的历史演进：从 RNN 到 Transformer</h2>
+  </div>
+
+  <p>要真正理解 GPT 为什么选择 Transformer，我们必须先了解在它之前，人们是如何处理序列数据的，以及那些方法遇到了什么根本性问题。</p>
+
+  <h3>循环神经网络（RNN）的时代</h3>
+  <p>在深度学习早期，处理文本最常用的模型是循环神经网络（Recurrent Neural Network）。</p>
+
+  <p><strong>核心思想</strong>：用同一个“细胞”按顺序处理序列的每一个元素，同时维护一个“隐藏状态”（hidden state），这个状态携带了前面所有信息的摘要。</p>
+
+  <p>类比：你一边读一本书，一边在脑子里不断更新“目前读到哪了、故事讲到什么程度”这个心理状态。</p>
+
+  <p>RNN 的数学形式非常简单：</p>
+  <div class="formula">hₜ = tanh(Wₕₕ · hₜ₋₁ + Wₓₕ · xₜ + b)</div>
+
+  <p>问题很快就暴露了：</p>
+  <ul>
+    <li><strong>梯度消失/爆炸</strong>：当序列很长时，反向传播要穿过很多时间步。梯度要么越来越小（前面的信息完全学不到），要么越来越大（训练直接崩溃）。</li>
+    <li><strong>无法并行</strong>：必须严格按时间顺序计算第 t 步依赖第 t-1 步。在 GPU 上这非常低效。</li>
+    <li><strong>长距离依赖困难</strong>：模型很难记住 50 步之前的信息。</li>
+  </ul>
+
+  <h3>LSTM 和 GRU 的改进</h3>
+  <p>为了解决梯度消失问题，研究者提出了 LSTM（Long Short-Term Memory）和后来的 GRU。</p>
+
+  <p>它们引入了“门控”机制（遗忘门、输入门、输出门），让模型可以选择性地记住或忘记信息。</p>
+
+  <p>这在当时是巨大的进步，很多语音识别、机器翻译系统都用 LSTM 取得了当时最好的结果。</p>
+
+  <p><strong>但根本问题依然存在</strong>：</p>
+  <ul>
+    <li>仍然是顺序计算，无法充分利用现代硬件的并行能力。</li>
+    <li>虽然缓解了梯度消失，但长距离依赖依然脆弱。</li>
+    <li>模型复杂度高，训练和推理都很慢。</li>
+  </ul>
+
+  <h3>Seq2Seq + Attention 的过渡</h3>
+  <p>2014 年，Seq2Seq（序列到序列）模型提出：用一个 RNN 把输入编码成一个固定向量，再用另一个 RNN 解码生成输出。</p>
+
+  <p>这在机器翻译上非常成功。但很快人们发现：把整个输入压缩成一个向量是瓶颈。</p>
+
+  <p>于是，Bahdanau Attention（2014）和 Luong Attention 出现了。</p>
+
+  <p><strong>关键突破</strong>：解码时不再只看一个固定向量，而是可以“动态关注”输入序列的不同部分。</p>
+
+  <p>这时注意力已经不是主角，它只是 RNN 的一个辅助模块。</p>
+
+  <h3>2017：Attention Is All You Need</h3>
+  <p>Google 的这篇论文做了最彻底的决定：<strong>扔掉循环结构，只用注意力</strong>。</p>
+
+  <p>他们提出了 Self-Attention（自注意力）：序列中的每一个位置都可以直接和其他所有位置计算相关性，而不需要按顺序传递信息。</p>
+
+  <p>这带来了革命性的优势：</p>
+  <table>
+    <tr><th>维度</th><th>RNN/LSTM</th><th>Transformer (Self-Attention)</th></tr>
+    <tr><td>并行性</td><td>极差（必须顺序）</td><td>极好（所有位置可同时计算）</td></tr>
+    <tr><td>长距离依赖</td><td>困难</td><td>一步到位（任何距离都是 O(1)）</td></tr>
+    <tr><td>计算复杂度（序列长度 n）</td><td>O(n)</td><td>O(n²)（但常数小，实际更快）</td></tr>
+    <tr><td>可解释性</td><td>较差</td><td>注意力权重直接可视化</td></tr>
+  </table>
+
+  <p>Transformer 一经提出，就在机器翻译任务上大幅超越了之前的 SOTA，而且训练速度快了一个数量级。</p>
+
+  <p>这为后续 GPT、BERT、T5 等所有现代大模型奠定了基础。</p>
+
+  <p><strong>图 3.1：序列模型演进时间线 — 从 RNN 到 Transformer</strong></p>
+  <p>下面的时间线展示了每一代模型如何解决前一代的根本限制。核心趋势：逐渐去掉结构约束（顺序、固定上下文），让模型从数据中学习更灵活的模式。</p>
+  <div class="diagram" style="background:#252c3d; padding:12px; border-radius:6px;">
+    <svg width="660" height="260" viewBox="0 0 660 260" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="11">
+      <defs><marker id="ht-arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#9aa3b8"/></marker></defs>
+      <line x1="40" y1="200" x2="640" y2="200" stroke="#3c4459" stroke-width="3"/>
+      <circle cx="80" cy="200" r="6" fill="#6c9eff" stroke="#2f364a" stroke-width="2"/>
+      <text x="80" y="225" text-anchor="middle" fill="#6c9eff" font-weight="bold">1986</text>
+      <text x="80" y="240" text-anchor="middle" fill="#9aa3b8" font-size="9">RNN</text>
+      <rect x="20" y="80" width="120" height="80" rx="6" fill="#2f364a" stroke="#6c9eff" stroke-width="1.5" opacity="0.3"/>
+      <text x="80" y="108" text-anchor="middle" fill="#6c9eff" font-weight="bold">RNN</text>
+      <text x="80" y="125" text-anchor="middle" fill="#9aa3b8" font-size="10">顺序隐藏状态</text>
+      <text x="80" y="142" text-anchor="middle" fill="#f87171" font-size="10">&#10060; 梯度消失</text>
+      <text x="80" y="155" text-anchor="middle" fill="#f87171" font-size="10">&#10060; 无法并行</text>
+      <line x1="80" y1="160" x2="80" y2="194" stroke="#6c9eff" stroke-width="1.5" stroke-dasharray="4,3"/>
+      <circle cx="240" cy="200" r="6" fill="#a78bfa" stroke="#2f364a" stroke-width="2"/>
+      <text x="240" y="225" text-anchor="middle" fill="#a78bfa" font-weight="bold">1997</text>
+      <text x="240" y="240" text-anchor="middle" fill="#9aa3b8" font-size="9">LSTM</text>
+      <rect x="180" y="80" width="120" height="80" rx="6" fill="#2f364a" stroke="#a78bfa" stroke-width="1.5" opacity="0.3"/>
+      <text x="240" y="108" text-anchor="middle" fill="#a78bfa" font-weight="bold">LSTM/GRU</text>
+      <text x="240" y="125" text-anchor="middle" fill="#9aa3b8" font-size="10">门控机制（遗忘/输入/输出）</text>
+      <text x="240" y="142" text-anchor="middle" fill="#34d399" font-size="10">&#10003; 缓解梯度消失</text>
+      <text x="240" y="155" text-anchor="middle" fill="#f87171" font-size="10">&#10060; 仍然顺序计算</text>
+      <line x1="240" y1="160" x2="240" y2="194" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="4,3"/>
+      <circle cx="400" cy="200" r="6" fill="#fb923c" stroke="#2f364a" stroke-width="2"/>
+      <text x="400" y="225" text-anchor="middle" fill="#fb923c" font-weight="bold">2014</text>
+      <text x="400" y="240" text-anchor="middle" fill="#9aa3b8" font-size="9">+注意力</text>
+      <rect x="340" y="50" width="120" height="110" rx="6" fill="#2f364a" stroke="#fb923c" stroke-width="1.5" opacity="0.3"/>
+      <text x="400" y="78" text-anchor="middle" fill="#fb923c" font-weight="bold">Seq2Seq + 注意力</text>
+      <text x="400" y="95" text-anchor="middle" fill="#9aa3b8" font-size="10">动态关注输入序列</text>
+      <text x="400" y="112" text-anchor="middle" fill="#34d399" font-size="10">&#10003; 长距离检索</text>
+      <text x="400" y="125" text-anchor="middle" fill="#f87171" font-size="10">&#10060; 仍然用 RNN</text>
+      <text x="400" y="138" text-anchor="middle" fill="#f87171" font-size="10">&#10060; 仍需顺序执行</text>
+      <line x1="400" y1="160" x2="400" y2="194" stroke="#fb923c" stroke-width="1.5" stroke-dasharray="4,3"/>
+      <circle cx="560" cy="200" r="6" fill="#34d399" stroke="#2f364a" stroke-width="2"/>
+      <text x="560" y="225" text-anchor="middle" fill="#34d399" font-weight="bold">2017</text>
+      <text x="560" y="240" text-anchor="middle" fill="#9aa3b8" font-size="9">Transformer</text>
+      <rect x="500" y="35" width="130" height="125" rx="6" fill="#14352a" stroke="#34d399" stroke-width="2"/>
+      <text x="565" y="63" text-anchor="middle" fill="#34d399" font-weight="bold">Transformer</text>
+      <text x="565" y="80" text-anchor="middle" fill="#9aa3b8" font-size="10">仅自注意力</text>
+      <text x="565" y="97" text-anchor="middle" fill="#34d399" font-size="10">&#10003; 完全并行</text>
+      <text x="565" y="110" text-anchor="middle" fill="#34d399" font-size="10">&#10003; O(1) 长距离</text>
+      <text x="565" y="123" text-anchor="middle" fill="#34d399" font-size="10">&#10003; 可解释性强</text>
+      <text x="565" y="136" text-anchor="middle" fill="#f87171" font-size="10">&#9888; O(n&sup2;) 复杂度</text>
+      <line x1="565" y1="160" x2="560" y2="194" stroke="#34d399" stroke-width="1.5" stroke-dasharray="4,3"/>
+      <path d="M140 120 Q160 120 160 120 L180 120" stroke="#9aa3b8" stroke-width="1.5" fill="none" marker-end="url(#ht-arr)"/>
+      <path d="M300 120 Q320 120 320 120 L340 120" stroke="#9aa3b8" stroke-width="1.5" fill="none" marker-end="url(#ht-arr)"/>
+      <path d="M460 105 Q480 105 480 105 L500 100" stroke="#9aa3b8" stroke-width="1.5" fill="none" marker-end="url(#ht-arr)"/>
+      <text x="630" y="260" text-anchor="middle" fill="#9aa3b8" font-size="10">时间 &rarr;</text>
+    </svg>
+  </div>
+
+  <p><strong>图 3.2：RNN vs Transformer — 训练和推理两个过程分开看</strong></p>
+  <div class="diagram" style="background:#252c3d; padding:12px; border-radius:6px; text-align:center;">
+    <svg width="700" height="500" viewBox="0 0 700 500" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="12">
+      <defs>
+        <marker id="a1" markerWidth="5" markerHeight="3" refX="5" refY="1.5" orient="auto"><polygon points="0 0,5 1.5,0 3" fill="#6c9eff"/></marker>
+        <marker id="a2" markerWidth="5" markerHeight="3" refX="5" refY="1.5" orient="auto"><polygon points="0 0,5 1.5,0 3" fill="#34d399"/></marker>
+        <marker id="a3" markerWidth="5" markerHeight="3" refX="5" refY="1.5" orient="auto"><polygon points="0 0,5 1.5,0 3" fill="#f87171"/></marker>
+      </defs>
+
+      <!-- ========== TOP HALF: TRAINING ========== -->
+      <rect x="10" y="5" width="680" height="210" rx="8" fill="#1a1f2e" stroke="#3c4459" stroke-width="1"/>
+      <text x="350" y="24" text-anchor="middle" fill="#fb923c" font-weight="bold" font-size="13">过程一：训练（Training）— 模型在学习如何"猜下一个词"</text>
+
+      <!-- Shared training data example -->
+      <text x="20" y="48" fill="#9aa3b8" font-size="10">训练数据中的一个样本句子：</text>
+      <text x="20" y="66" fill="#fb923c" font-weight="bold" font-size="13">"我 喜欢 猫"</text>
+      <text x="20" y="82" fill="#9aa3b8" font-size="9">模型看到的输入 x = [我, 喜欢, 猫] → 要学习的正确答案 y = [喜欢, 猫, END]（右移一位）</text>
+
+      <!-- Divider: RNN vs Transformer within training -->
+      <line x1="345" y1="50" x2="345" y2="208" stroke="#3c4459" stroke-width="1" stroke-dasharray="4,3"/>
+
+      <!-- === RNN Training === -->
+      <text x="165" y="98" text-anchor="middle" fill="#6c9eff" font-weight="bold" font-size="11">RNN 训练：逐词扫描</text>
+
+      <text x="30" y="115" fill="#9aa3b8" font-size="8">t₁</text>
+      <rect x="50" y="105" width="40" height="22" rx="4" fill="#1e3a5f" stroke="#6c9eff"/>
+      <text x="70" y="120" text-anchor="middle" fill="#e8eaf0" font-size="9">我</text>
+      <circle cx="135" cy="116" r="7" fill="#2d2050" stroke="#a78bfa" stroke-width="1.5"/>
+      <text x="155" y="120" fill="#6c9eff" font-size="8">→ 预测"喜欢" ✓</text>
+      <line x1="90" y1="116" x2="128" y2="116" stroke="#6c9eff" stroke-width="0.8" marker-end="url(#a1)"/>
+
+      <text x="30" y="143" fill="#9aa3b8" font-size="8">t₂</text>
+      <rect x="50" y="133" width="40" height="22" rx="4" fill="#1e3a5f" stroke="#6c9eff"/>
+      <text x="70" y="148" text-anchor="middle" fill="#e8eaf0" font-size="9">喜欢</text>
+      <circle cx="135" cy="144" r="7" fill="#2d2050" stroke="#a78bfa" stroke-width="1.5"/>
+      <text x="155" y="148" fill="#6c9eff" font-size="8">→ 预测"猫" ✓</text>
+      <path d="M135 123 Q148 130 135 137" stroke="#f87171" stroke-width="1" fill="none" marker-end="url(#a3)" stroke-dasharray="3,2"/>
+      <line x1="90" y1="144" x2="128" y2="144" stroke="#6c9eff" stroke-width="0.8" marker-end="url(#a1)"/>
+
+      <text x="30" y="171" fill="#9aa3b8" font-size="8">t₃</text>
+      <rect x="50" y="161" width="40" height="22" rx="4" fill="#1e3a5f" stroke="#6c9eff"/>
+      <text x="70" y="176" text-anchor="middle" fill="#e8eaf0" font-size="9">猫</text>
+      <circle cx="135" cy="172" r="7" fill="#2d2050" stroke="#a78bfa" stroke-width="1.5"/>
+      <text x="155" y="176" fill="#6c9eff" font-size="8">→ 预测 END ✓</text>
+      <path d="M135 151 Q148 158 135 165" stroke="#f87171" stroke-width="1" fill="none" marker-end="url(#a3)" stroke-dasharray="3,2"/>
+      <line x1="90" y1="172" x2="128" y2="172" stroke="#6c9eff" stroke-width="0.8" marker-end="url(#a1)"/>
+
+      <text x="40" y="200" fill="#f87171" font-size="8">⏳ 一步一步等（h₁→h₂→h₃）</text>
+
+      <!-- === Transformer Training === -->
+      <text x="525" y="98" text-anchor="middle" fill="#34d399" font-weight="bold" font-size="11">Transformer 训练：全词并行</text>
+
+      <rect x="375" y="108" width="40" height="22" rx="4" fill="#14352a" stroke="#34d399"/>
+      <text x="395" y="123" text-anchor="middle" fill="#e8eaf0" font-size="9">我</text>
+      <rect x="435" y="108" width="40" height="22" rx="4" fill="#14352a" stroke="#34d399"/>
+      <text x="455" y="123" text-anchor="middle" fill="#e8eaf0" font-size="9">喜欢</text>
+      <rect x="495" y="108" width="40" height="22" rx="4" fill="#14352a" stroke="#34d399"/>
+      <text x="515" y="123" text-anchor="middle" fill="#e8eaf0" font-size="9">猫</text>
+
+      <text x="380" y="150" fill="#34d399" font-size="9">↓ 整个序列一起穿过网络 ↓</text>
+
+      <rect x="375" y="160" width="40" height="22" rx="4" fill="#14352a" stroke="#34d399"/>
+      <text x="395" y="175" text-anchor="middle" fill="#34d399" font-size="9">← 喜欢</text>
+      <rect x="435" y="160" width="40" height="22" rx="4" fill="#14352a" stroke="#34d399"/>
+      <text x="455" y="175" text-anchor="middle" fill="#34d399" font-size="9">← 猫</text>
+      <rect x="495" y="160" width="40" height="22" rx="4" fill="#14352a" stroke="#34d399"/>
+      <text x="515" y="175" text-anchor="middle" fill="#34d399" font-size="9">← END</text>
+
+      <text x="375" y="200" fill="#34d399" font-size="8">⚡ 3 个预测一次性算完</text>
+
+      <!-- ========== BOTTOM HALF: INFERENCE ========== -->
+      <rect x="10" y="222" width="680" height="270" rx="8" fill="#1a1f2e" stroke="#3c4459" stroke-width="1"/>
+      <text x="350" y="242" text-anchor="middle" fill="#6c9eff" font-weight="bold" font-size="13">过程二：推理 / 生成（Inference）— 模型真正在用"猜词"来回答问题</text>
+
+      <text x="20" y="263" fill="#9aa3b8" font-size="10">用户问："今天天气怎么样？" 模型生成回答的过程：</text>
+
+      <line x1="345" y1="270" x2="345" y2="485" stroke="#3c4459" stroke-width="1" stroke-dasharray="4,3"/>
+
+      <!-- === RNN Inference === -->
+      <text x="165" y="283" text-anchor="middle" fill="#6c9eff" font-weight="bold" font-size="11">RNN 生成：逐词递推</text>
+
+      <text x="15" y="303" fill="#f87171" font-size="8">生成</text>
+      <rect x="40" y="292" width="215" height="20" rx="4" fill="#2f364a" stroke="#3c4459"/>
+      <text x="147" y="306" text-anchor="middle" fill="#9aa3b8" font-size="9">今天天气怎么样？</text>
+
+      <text x="15" y="333" fill="#34d399" font-size="8">生成</text>
+      <rect x="40" y="322" width="215" height="20" rx="4" fill="#2f364a" stroke="#6c9eff"/>
+      <text x="110" y="336" text-anchor="middle" fill="#e8eaf0" font-size="9">今天天气怎么样？</text>
+      <circle cx="280" cy="332" r="6" fill="#2d2050" stroke="#a78bfa" stroke-width="1.5"/>
+      <text x="300" y="336" fill="#34d399" font-size="8">→ 真</text>
+      <line x1="255" y1="332" x2="274" y2="332" stroke="#6c9eff" stroke-width="0.8" marker-end="url(#a1)"/>
+
+      <text x="15" y="363" fill="#34d399" font-size="8">生成</text>
+      <rect x="40" y="352" width="240" height="20" rx="4" fill="#2f364a" stroke="#6c9eff"/>
+      <text x="120" y="366" text-anchor="middle" fill="#e8eaf0" font-size="9">今天天气怎么样？真</text>
+      <circle cx="305" cy="362" r="6" fill="#2d2050" stroke="#a78bfa" stroke-width="1.5"/>
+      <text x="325" y="366" fill="#34d399" font-size="8">→ 不</text>
+      <path d="M280 338 Q293 345 280 352" stroke="#f87171" stroke-width="1" fill="none" marker-end="url(#a3)" stroke-dasharray="3,2"/>
+      <line x1="280" y1="362" x2="299" y2="362" stroke="#6c9eff" stroke-width="0.8" marker-end="url(#a1)"/>
+
+      <text x="15" y="393" fill="#34d399" font-size="8">生成</text>
+      <rect x="40" y="382" width="260" height="20" rx="4" fill="#2f364a" stroke="#6c9eff"/>
+      <text x="130" y="396" text-anchor="middle" fill="#e8eaf0" font-size="9">今天天气怎么样？真不</text>
+      <circle cx="325" cy="392" r="6" fill="#2d2050" stroke="#a78bfa" stroke-width="1.5"/>
+      <text x="345" y="396" fill="#34d399" font-size="8">→ 错</text>
+      <path d="M305 368 Q318 375 305 382" stroke="#f87171" stroke-width="1" fill="none" marker-end="url(#a3)" stroke-dasharray="3,2"/>
+      <line x1="300" y1="392" x2="319" y2="392" stroke="#6c9eff" stroke-width="0.8" marker-end="url(#a1)"/>
+
+      <text x="40" y="425" fill="#f87171" font-size="8">⛔ 每次生成都要等上一轮隐藏状态</text>
+      <text x="40" y="438" fill="#f87171" font-size="8">⛔ "今天天气怎么样？"中的"天"→"气"远，信息衰减</text>
+
+      <!-- === Transformer Inference === -->
+      <text x="525" y="283" text-anchor="middle" fill="#34d399" font-weight="bold" font-size="11">Transformer 生成：逐词自回归</text>
+
+      <text x="380" y="303" fill="#f87171" font-size="8">第 1 步</text>
+      <rect x="420" y="292" width="100" height="22" rx="4" fill="#2f364a" stroke="#3c4459"/>
+      <text x="470" y="307" text-anchor="middle" fill="#9aa3b8" font-size="9">今天天气怎么样？</text>
+      <circle cx="545" cy="303" r="6" fill="#14352a" stroke="#34d399" stroke-width="1.5"/>
+      <text x="565" y="307" fill="#34d399" font-size="8">→ 真</text>
+
+      <text x="380" y="340" fill="#f87171" font-size="8">第 2 步</text>
+      <rect x="420" y="325" width="140" height="22" rx="4" fill="#14352a" stroke="#34d399"/>
+      <text x="490" y="340" text-anchor="middle" fill="#e8eaf0" font-size="9">今天天气怎么样？真</text>
+      <circle cx="585" cy="336" r="6" fill="#14352a" stroke="#34d399" stroke-width="1.5"/>
+      <text x="605" y="340" fill="#34d399" font-size="8">→ 不</text>
+
+      <text x="380" y="375" fill="#f87171" font-size="8">第 3 步</text>
+      <rect x="420" y="358" width="175" height="22" rx="4" fill="#14352a" stroke="#34d399"/>
+      <text x="507" y="373" text-anchor="middle" fill="#e8eaf0" font-size="9">今天天气怎么样？真不</text>
+      <circle cx="620" cy="369" r="6" fill="#14352a" stroke="#34d399" stroke-width="1.5"/>
+      <text x="640" y="373" fill="#34d399" font-size="8">→ 错</text>
+
+      <!-- Attention arrows showing each step sees all previous tokens -->
+      <path d="M545 309 Q580 316 545 329" stroke="#34d399" stroke-width="0.5" fill="none" opacity="0.4"/>
+      <path d="M585 342 Q620 349 585 365" stroke="#34d399" stroke-width="0.5" fill="none" opacity="0.4"/>
+
+      <text x="430" y="405" fill="#34d399" font-size="8">注意箭头：生成"不"时 → 注意力能看到所有前面的词</text>
+      <text x="430" y="418" fill="#34d399" font-size="8">"今天天气怎么样？"直接连接到"不"，不需要经过"真"传递</text>
+
+      <text x="430" y="445" fill="#f87171" font-size="8">⛔ 虽然还是逐词生成，但因果掩码保证了训练/生成一致</text>
+      <text x="430" y="458" fill="#f87171" font-size="8">✅ 任意远位置的词都可以直接注意，没有距离衰减</text>
+
+      <!-- Key difference summary -->
+      <text x="350" y="490" text-anchor="middle" fill="#fb923c" font-size="10" font-weight="bold">核心区别：训练时 Transformer 全并行（快），推理时两者都逐词（但 Transformer 没有距离衰减）</text>
+    </svg>
+  </div>
+
+  <h3>为什么 GPT 选择了纯 Decoder？</h3>
+  <p>原始 Transformer 有 Encoder 和 Decoder 两部分。不同的架构选择，本质上是<b>“注意力能看到多远”</b>的区别。</p>
+  <p>用一句话“<b>我 喜欢 猫</b>”来看三种架构分别怎么处理：</p>
+
+  <p><strong>图 3.3：三种架构的注意力可见范围</strong></p>
+  <div class="diagram" style="background:#252c3d; padding:12px; border-radius:6px; text-align:center; font-size:0.85rem;">
+    <svg width="640" height="380" viewBox="0 0 640 380" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="11">
+      <defs>
+        <marker id="bi-arr" markerWidth="5" markerHeight="3" refX="5" refY="1.5" orient="auto"><polygon points="0 0,5 1.5,0 3" fill="#6c9eff"/></marker>
+        <marker id="ca-arr" markerWidth="5" markerHeight="3" refX="5" refY="1.5" orient="auto"><polygon points="0 0,5 1.5,0 3" fill="#34d399"/></marker>
+      </defs>
+
+      <!-- BERT (Encoder) row -->
+      <text x="20" y="25" fill="#6c9eff" font-weight="bold" font-size="13">BERT (Encoder) — 双向注意力</text>
+      <text x="20" y="45" fill="#9aa3b8" font-size="10">每个 token 都能看到序列中 所有 其他 token（左右都可以）</text>
+
+      <rect x="40" y="55" width="72" height="28" rx="5" fill="#1e3a5f" stroke="#6c9eff"/><text x="76" y="73" text-anchor="middle" fill="#e8eaf0" font-size="11">我</text>
+      <rect x="124" y="55" width="72" height="28" rx="5" fill="#1e3a5f" stroke="#6c9eff"/><text x="160" y="73" text-anchor="middle" fill="#e8eaf0" font-size="11">喜欢</text>
+      <rect x="208" y="55" width="72" height="28" rx="5" fill="#1e3a5f" stroke="#6c9eff"/><text x="244" y="73" text-anchor="middle" fill="#e8eaf0" font-size="11">猫</text>
+
+      <!-- BERT: attention arrows -- all-to-all -->
+      <path d="M65 83 Q76 95 65 103" stroke="#6c9eff" stroke-width="0.8" fill="none" marker-end="url(#bi-arr)" opacity="0.5"/>
+      <path d="M76 83 Q124 95 160 103" stroke="#6c9eff" stroke-width="0.8" fill="none" marker-end="url(#bi-arr)" opacity="0.5"/>
+      <path d="M76 83 Q160 95 244 103" stroke="#6c9eff" stroke-width="0.8" fill="none" marker-end="url(#bi-arr)" opacity="0.5"/>
+      <path d="M148 83 Q124 95 76 103" stroke="#6c9eff" stroke-width="0.8" fill="none" marker-end="url(#bi-arr)" opacity="0.5"/>
+      <path d="M160 83 Q160 95 160 103" stroke="#6c9eff" stroke-width="0.8" fill="none" marker-end="url(#bi-arr)" opacity="0.5"/>
+      <path d="M160 83 Q208 95 244 103" stroke="#6c9eff" stroke-width="0.8" fill="none" marker-end="url(#bi-arr)" opacity="0.5"/>
+      <path d="M232 83 Q124 95 76 103" stroke="#6c9eff" stroke-width="0.8" fill="none" marker-end="url(#bi-arr)" opacity="0.5"/>
+      <path d="M244 83 Q208 95 160 103" stroke="#6c9eff" stroke-width="0.8" fill="none" marker-end="url(#bi-arr)" opacity="0.5"/>
+      <path d="M244 83 Q244 95 244 103" stroke="#6c9eff" stroke-width="0.8" fill="none" marker-end="url(#bi-arr)" opacity="0.5"/>
+
+      <text x="300" y="73" fill="#6c9eff" font-size="10">→ &quot;猫&quot; 能看到 &quot;我&quot; 和 &quot;喜欢&quot;</text>
+      <text x="300" y="90" fill="#6c9eff" font-size="10">→ &quot;我&quot; 也能看到后面 &quot;喜欢 猫&quot;</text>
+
+      <!-- GPT (Decoder) row -->
+      <line x1="20" y1="120" x2="620" y2="120" stroke="#3c4459" stroke-width="1" stroke-dasharray="4,3"/>
+      <text x="20" y="145" fill="#34d399" font-weight="bold" font-size="13">GPT (Decoder) — 因果自注意力</text>
+      <text x="20" y="165" fill="#9aa3b8" font-size="10">每个 token 只能 看到自己及 左边 的 token（右边被遮住）</text>
+
+      <rect x="40" y="178" width="72" height="28" rx="5" fill="#14352a" stroke="#34d399"/><text x="76" y="196" text-anchor="middle" fill="#e8eaf0" font-size="11">我</text>
+      <rect x="124" y="178" width="72" height="28" rx="5" fill="#14352a" stroke="#34d399"/><text x="160" y="196" text-anchor="middle" fill="#e8eaf0" font-size="11">喜欢</text>
+      <rect x="208" y="178" width="72" height="28" rx="5" fill="#14352a" stroke="#34d399"/><text x="244" y="196" text-anchor="middle" fill="#e8eaf0" font-size="11">猫</text>
+
+      <!-- GPT: attention arrows -- only leftward/self -->
+      <path d="M76 206 Q76 220 76 228" stroke="#34d399" stroke-width="0.8" fill="none" marker-end="url(#ca-arr)" opacity="0.5"/>
+      <path d="M148 206 Q76 220 76 228" stroke="#34d399" stroke-width="0.8" fill="none" marker-end="url(#ca-arr)" opacity="0.5"/>
+      <path d="M160 206 Q160 220 160 228" stroke="#34d399" stroke-width="0.8" fill="none" marker-end="url(#ca-arr)" opacity="0.5"/>
+      <path d="M232 206 Q76 220 76 228" stroke="#34d399" stroke-width="0.8" fill="none" marker-end="url(#ca-arr)" opacity="0.5"/>
+      <path d="M244 206 Q160 220 160 228" stroke="#34d399" stroke-width="0.8" fill="none" marker-end="url(#ca-arr)" opacity="0.5"/>
+      <path d="M244 206 Q244 220 244 228" stroke="#34d399" stroke-width="0.8" fill="none" marker-end="url(#ca-arr)" opacity="0.5"/>
+
+      <text x="300" y="196" fill="#34d399" font-size="10">→ &quot;猫&quot; 只能看到 &quot;我 喜欢&quot;</text>
+      <text x="300" y="213" fill="#f87171" font-size="10">→ &quot;我&quot; 不能 看到 &quot;喜欢 猫&quot;</text>
+
+      <!-- T5 row -->
+      <line x1="20" y1="248" x2="620" y2="248" stroke="#3c4459" stroke-width="1" stroke-dasharray="4,3"/>
+      <text x="20" y="273" fill="#fb923c" font-weight="bold" font-size="13">T5 (Encoder-Decoder)</text>
+      <text x="20" y="293" fill="#9aa3b8" font-size="10">Encoder 是双向（像 BERT），Decoder 是因果（像 GPT）+ 额外看到 Encoder 的输出</text>
+
+      <rect x="40" y="305" width="72" height="24" rx="4" fill="#1e3a5f" stroke="#6c9eff"/><text x="76" y="321" text-anchor="middle" fill="#e8eaf0" font-size="10">我</text>
+      <rect x="120" y="305" width="72" height="24" rx="4" fill="#1e3a5f" stroke="#6c9eff"/><text x="156" y="321" text-anchor="middle" fill="#e8eaf0" font-size="10">喜欢</text>
+      <rect x="200" y="305" width="72" height="24" rx="4" fill="#1e3a5f" stroke="#6c9eff"/><text x="236" y="321" text-anchor="middle" fill="#e8eaf0" font-size="10">猫</text>
+      <text x="40" y="355" fill="#9aa3b8" font-size="10">Encoder 双向 →</text>
+      <rect x="40" y="328" width="232" height="20" rx="4" fill="#2f364a" stroke="#6c9eff" stroke-width="1" stroke-dasharray="3,2" opacity="0.5"/>
+      <text x="300" y="310" fill="#fb923c" font-size="10">Encoder 先完整理解输入</text>
+      <text x="300" y="328" fill="#fb923c" font-size="10">Decoder 逐 token 生成输出</text>
+      <text x="300" y="348" fill="#9aa3b8" font-size="10">生成时还能回头看 Encoder</text>
+    </svg>
+  </div>
+
+  <p><b>用具体例子理解区别：</b>假设模型在读“我喜欢猫”，停在“猫”这个位置：</p>
+  <table>
+    <tr><th>模型</th><th>“猫”能看到什么？</th><th>为什么？</th></tr>
+    <tr>
+      <td><b>BERT</b><br>(Encoder)</td>
+      <td>我, 喜欢, 猫 <span style="color:#34d399">（全部）</span></td>
+      <td>双向注意力没有遮罩，<b>左右两边都能看</b>。“猫”的表示同时包含了“我”和“喜欢”的完整信息。适合做分类、情感分析等<b>理解</b>任务。</td>
+    </tr>
+    <tr>
+      <td><b>GPT</b><br>(Decoder)</td>
+      <td>我, 喜欢 <span style="color:#f87171">（只看左边，不能看右边）</span></td>
+      <td>因果遮罩把右边的 future token 遮住了。“猫”的位置只知道左边出现过“我喜欢”。因为生成时<b>你根本还没有右边的 token</b>——这是一个“从前往后”的生成过程。</td>
+    </tr>
+    <tr>
+      <td><b>T5</b></td>
+      <td>Encoder 看全部 + Decoder 因果生成</td>
+      <td>先让 Encoder 双向看完输入（理解整句话），再让 Decoder 因果生成输出（翻译/摘要等）。相当于<b>先理解，再创作</b>。</td>
+    </tr>
+  </table>
+
+  <div class="key-takeaway">
+    <strong>核心理解</strong>：所谓“双向”就是注意力不加限制，每个词都能看到整个句子的所有其他词。所谓“因果”就是加了一个遮罩（mask），强迫每个位置只能看自己及左边的 token。<br><br>
+    这完全由模型结构<b>一层代码的区别</b>决定——在注意力计算中是否应用了 causal mask。<br><br>
+    事实证明，对于“下一个词预测”这个极度通用的预训练目标，纯 Decoder + 自回归是最简单也最有效的：你用“预测下一个词”来训练它，再用完全同样的“预测下一个词”方式来生成，训练和推理的目标天然对齐。BERT 的双向注意力虽然能看更多上下文，但它的训练方式（填空）和推理方式（理解）不完全一致，作为生成模型也不够自然。</div>
+
+  <h3>与视觉 Transformer (ViT) 的对比</h3>
+  <p>Transformer 不仅统治了 NLP，也进入了计算机视觉。ViT (Vision Transformer) 把图像切成 patch，当作序列来处理。</p>
+  <p>关键区别：</p>
+  <ul>
+    <li>视觉中没有天然的“因果”顺序，所以 ViT 用双向注意力 + 位置编码。</li>
+    <li>但在视频生成或自回归图像生成任务中，人们又开始用类似 GPT 的因果版本 (如 ImageGPT)。</li>
+    <li>这说明注意力机制非常通用，具体是 causal 还是 bidirectional，主要由任务的“生成 vs 理解”性质决定。</li>
+  </ul>
+
+  <div class="key-takeaway">
+    <strong>历史给我们的启示</strong>：很多看似复杂的进步，其实是把“归纳偏置”去掉、让模型自己从数据中学习的结果。RNN 有很强的时序归纳偏置，Transformer 几乎没有，它把一切都交给注意力去发现。视觉和语言的成功进一步证明了这一点。
+  </div>
+</section>
+<!-- ===== 4. TOKENIZATION & EMBEDDING ===== -->
+
+<section id="tokenization">
+<h2>4. Tokenization 与表示（BPE 实现）</h2>
+  <p>电脑只认识 0 和 1。文字必须先翻译成一串整数。</p>
+  <p>最简单的办法是「每个字母一个编号」——但这样序列太长，模型要背很多「拼写规则」。</p>
+  <p>GPT-2 用的是叫 <strong>BPE（字节对编码）</strong> 的聪明方法：</p>
+  <ul>
+    <li>先用空格和标点把句子「粗切」成小块。</li>
+    <li>把每个字节映射成「看起来好看的符号」（空格变成 Ġ）。</li>
+    <li>然后按训练好的合并表，把常见字节对逐步合并成子词；GPT-2 的词表最终约 5 万个 token。</li>
+  </ul>
+  <p>结果就是：常见词（如 "like"）往往是一个 token，不常见的词会被拆开。</p>
+
+  <div class="notebook-cell">
+    <div class="cell-header">
+      <span class="cell-badge">Code Example</span>
+      <span class="cell-title">执行这个，亲眼看到文字怎么变成数字</span>
+    </div>
+<pre><code>from mingpt.bpe import BPETokenizer
+tokenizer = BPETokenizer()
+text = "I like cats"
+ids = tokenizer(text)
+print("原始文字:", text)
+print("变成的整数序列:", ids.tolist())
+print("解码回去:", tokenizer.decode(ids[0]))</code></pre>
+    <div class="cell-output">
+原始文字: I like cats
+变成的整数序列: [[40, 588, 11875]]
+解码回去: I like cats
+    </div>
+    <div class="cell-explanation">
+      <strong>发生了什么？</strong><br>
+      输入 "I like cats" 后，BPE 分词器把它变成了三个整数 <code>[40, 588, 11875]</code>。<br>
+      这三个数字就是模型真正“看到”的内容。模型从来不直接处理字母，它只处理整数 ID。<br>
+      最后一行把 ID 解码回文字，证明这个转换是可逆的。<br>
+      <strong>建议自己动手：</strong> 把 <code>text</code> 改成其他句子（比如 "Hello world" 或中文），观察它会变成多少个 token。
+    </div>
+  </div>
+
+  <h3>4.2 第二步：把数字变成「有味道的向量」（Embedding）</h3>
+  <p>现在我们有了一串数字： [40, 588, 11875]。</p>
+  <p>模型要把每个数字「翻译」成一个长度为 48（gpt-nano）或 768（gpt2）的向量。</p>
+  <p>你可以把这个向量想象成「这个词的身份证 + 性格描述」。</p>
+  <ul>
+    <li>数字 40（代表 I） → 一个 768 维的向量</li>
+    <li>数字 588（代表 like） → 另一个向量</li>
+  </ul>
+  <p>刚开始这些向量是随机乱写的（像刚出生的婴儿对所有词都没概念）。训练过程中，模型会慢慢调整这些向量，让意思相近的词的向量「长得像」。</p>
+
+  <p><strong>重要：位置信息也要加进去！</strong></p>
+  <p>如果只有词向量，模型会搞不清顺序。因为「我喜欢猫」和「猫喜欢我」词是一样的。</p>
+  <p>所以我们还要给每个位置加一个「我在第几个位置」的向量（Position Embedding），然后两个向量相加。</p>
+  <p>现在每个位置都有了一个「既知道自己是谁，又知道自己站在第几步」的向量。</p>
+
+  <div class="key-takeaway">
+    <strong>最核心的形状变化（用小例子记住）：</strong><br>
+    输入：2 个句子，每句 3 个词 → 形状 (2, 3)<br>
+    经过词嵌入 + 位置嵌入 → (2, 3, 48)   ← 48 是 gpt-nano 的「脑容量」<br>
+    经过所有 Transformer 层后依然是 (2, 3, 48)<br>
+    最后输出 → (2, 3, 50257) ← 每个位置对「5万多个可能下一个词」的打分
+  </div>
+</section>
+
+<!-- ===== ARCHITECTURE ===== -->
+<section id="architecture">
+  <h2>5. 整体架构与数据流</h2>
+  <p>GPT 是一个<strong>仅解码器（Decoder-Only）</strong>的 Transformer。给定 token 序列，预测每个位置的下一个 token 概率。</p>
+
+  <p><strong>图：GPT 整体前向传播架构示意图</strong></p>
+  <p>这个图展示了数据如何从输入 token IDs 一步步流经整个模型：</p>
+  <ul>
+    <li>最上方：输入 (B, T) 形状的 token ID 矩阵（B 是 batch 大小，T 是序列长度）。</li>
+    <li>左右两侧：Token Embedding（把每个 token ID 映射成 n_embd 维向量）和 Position Embedding（为每个位置添加位置信息）。两者相加后得到初始表示。</li>
+    <li>中间大框：n_layer 个 Transformer Block 堆叠。每个 Block 内部先做 Causal Self-Attention（因果自注意力，只能看左边和自己），再做 Feed-Forward MLP（前馈网络，维度先扩展 4 倍再缩回），中间用残差连接 + LayerNorm 稳定训练。</li>
+    <li>下方：最终 LayerNorm + LM Head（线性层），把表示投射到 vocab_size 维的 logits（每个位置对下一个词的打分）。</li>
+  </ul>
+  <p>与 BERT 的主要区别：BERT 是双向 Encoder，可以看到整个句子；GPT 是因果 Decoder，只能看到过去信息，这使得它特别适合自回归生成任务（如 ChatGPT 的续写）。与早期 RNN 相比，这里所有位置可以并行计算注意力，不再需要顺序递归。</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 720 520" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="13">
+      <defs>
+        <marker id="arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#6c9eff"/></marker>
+      </defs>
+      <!-- Input -->
+      <rect x="280" y="10" width="160" height="36" rx="6" fill="#2f364a" stroke="#6c9eff" stroke-width="1.5"/>
+      <text x="360" y="33" text-anchor="middle" fill="#e8eaf0">输入 token IDs (B, T)</text>
+      <!-- Embeddings -->
+      <rect x="60" y="80" width="140" height="40" rx="6" fill="#1e3a5f" stroke="#6c9eff"/>
+      <text x="130" y="105" text-anchor="middle" fill="#6c9eff">Token Embedding</text>
+      <text x="130" y="140" text-anchor="middle" fill="#9aa3b8" font-size="11">wte: vocab → n_embd</text>
+      <rect x="520" y="80" width="140" height="40" rx="6" fill="#1e3a5f" stroke="#6c9eff"/>
+      <text x="590" y="105" text-anchor="middle" fill="#6c9eff">Position Embedding</text>
+      <text x="590" y="140" text-anchor="middle" fill="#9aa3b8" font-size="11">wpe: pos → n_embd</text>
+      <line x1="360" y1="46" x2="130" y2="80" stroke="#6c9eff" marker-end="url(#arrow)"/>
+      <line x1="360" y1="46" x2="590" y2="80" stroke="#6c9eff" marker-end="url(#arrow)"/>
+      <!-- Add -->
+      <circle cx="360" cy="175" r="22" fill="#343c52" stroke="#a78bfa" stroke-width="1.5"/>
+      <text x="360" y="180" text-anchor="middle" fill="#a78bfa" font-size="18">+</text>
+      <line x1="130" y1="120" x2="340" y2="165" stroke="#6c9eff" marker-end="url(#arrow)"/>
+      <line x1="590" y1="120" x2="380" y2="165" stroke="#6c9eff" marker-end="url(#arrow)"/>
+      <!-- Dropout -->
+      <rect x="280" y="210" width="160" height="32" rx="6" fill="#2f364a" stroke="#9aa3b8"/>
+      <text x="360" y="231" text-anchor="middle" fill="#9aa3b8">Dropout</text>
+      <line x1="360" y1="197" x2="360" y2="210" stroke="#a78bfa" marker-end="url(#arrow)"/>
+      <!-- Blocks -->
+      <rect x="200" y="270" width="320" height="120" rx="8" fill="#252c3d" stroke="#34d399" stroke-width="1.5"/>
+      <text x="360" y="295" text-anchor="middle" fill="#34d399" font-weight="bold">× n_layer 个 Transformer Block</text>
+      <rect x="220" y="310" width="130" height="30" rx="4" fill="#14352a" stroke="#34d399"/>
+      <text x="285" y="330" text-anchor="middle" fill="#34d399" font-size="12">Causal Self-Attention</text>
+      <rect x="370" y="310" width="130" height="30" rx="4" fill="#14352a" stroke="#34d399"/>
+      <text x="435" y="330" text-anchor="middle" fill="#34d399" font-size="12">Feed-Forward (MLP)</text>
+      <text x="360" y="370" text-anchor="middle" fill="#9aa3b8" font-size="11">每层: LN → Attn → 残差 → LN → MLP → 残差</text>
+      <line x1="360" y1="242" x2="360" y2="270" stroke="#9aa3b8" marker-end="url(#arrow)"/>
+      <!-- LN + LM Head -->
+      <rect x="280" y="420" width="160" height="32" rx="6" fill="#2f364a" stroke="#fb923c"/>
+      <text x="360" y="441" text-anchor="middle" fill="#fb923c">LayerNorm (ln_f)</text>
+      <rect x="260" y="470" width="200" height="36" rx="6" fill="#2a1f14" stroke="#fb923c" stroke-width="1.5"/>
+      <text x="360" y="493" text-anchor="middle" fill="#fb923c" font-weight="bold">LM Head → logits (B, T, vocab_size)</text>
+      <line x1="360" y1="390" x2="360" y2="420" stroke="#34d399" marker-end="url(#arrow)"/>
+      <line x1="360" y1="452" x2="360" y2="470" stroke="#fb923c" marker-end="url(#arrow)"/>
+    </svg>
+  </div>
+
+  <h3>数据流维度变化 —— 用最小的数字例子彻底理解</h3>
+  <p>我们用一个超级小的例子帮助你彻底记住形状变化：</p>
+  <p><strong>例子设定：</strong> 同时处理 2 个句子（batch=2），每个句子只有 4 个词（T=4），使用 gpt-nano（n_embd=48）</p>
+
+  <table class="shape-table">
+    <tr><th>步骤</th><th>形状</th><th>直观理解</th></tr>
+    <tr><td>原始输入 token ID</td><td>(2, 4)</td><td>2 行 4 列的表格，每一行是一个句子的 4 个数字</td></tr>
+    <tr><td>词嵌入 (wte) 之后</td><td>(2, 4, 48)</td><td>每个数字都变成了一个长度 48 的向量，现在是三维的了</td></tr>
+    <tr><td>+ 位置嵌入</td><td>(2, 4, 48)</td><td>形状没变，只是内容加上了位置信息</td></tr>
+    <tr><td>经过 1 个 Block</td><td>(2, 4, 48)</td><td>形状永远不变！这很重要。Block 只是在“混合信息”，不改变大小</td></tr>
+    <tr><td>经过全部 3 个 Block</td><td>(2, 4, 48)</td><td>信息已经被混合了 3 次，越来越抽象</td></tr>
+    <tr><td>最后 lm_head 输出</td><td>(2, 4, 50257)</td><td>每个位置现在对 5 万多个可能的「下一个词」都打了一个分</td></tr>
+  </table>
+
+  <p><strong>核心记忆口诀：</strong><br>
+  「输入是 (批次, 长度)，中间永远保持 (批次, 长度, 脑容量)，最后一步才变成 (批次, 长度, 词表大小)」</p>
+
+  <h3>用一句话把「文字 → 模型 → 下一个词」完整走一遍</h3>
+  <p>我们用最短的例子：「I like」这两个词，让你看到数据在模型里是怎么流动的。</p>
+
+  <ol style="line-height:1.8">
+    <li><strong>文字 → Token</strong>： "I like" → [40, 588] （两个整数）</li>
+    <li><strong>变成向量</strong>：每个数字查表变成长度 48 的向量 → 形状 (1, 2, 48)</li>
+    <li><strong>加上位置</strong>：第 0 个位置加「我在位置0」的向量，第 1 个位置加「我在位置1」的向量。</li>
+    <li><strong>进入第一个 Block</strong>：
+      <ul>
+        <li>先 LayerNorm 标准化一下</li>
+        <li>做因果自注意力：位置 0 只能看自己，位置 1 可以看位置 0 和自己</li>
+        <li>残差连接（把原来的信息加回来）</li>
+        <li>再 LayerNorm + MLP（让每个位置自己多思考一下）</li>
+        <li>又一次残差连接</li>
+      </ul>
+    </li>
+    <li>同样流程再走 2 次（因为 nano 有 3 层）</li>
+    <li><strong>最后输出</strong>：形状变成 (1, 2, 50257)。我们只关心最后一个位置（位置 1），对它做 softmax，就得到「下一个词最可能是哪个」的概率分布。</li>
+    <li><strong>生成</strong>：从这个分布里挑一个词（可以挑概率最高的，也可以随机挑），把它变成 token ID 拼到序列后面，继续重复上面过程。</li>
+  </ol>
+
+  <p>整个过程听起来很长，但代码其实只有 model.py 里 forward 函数的 20 行左右。</p>
+
+</section>
+
+<section id="attention">
+  <h3>6. 自注意力机制：Transformer 的核心</h3>
+
+  <p>自注意力（Self-Attention）是 Transformer 区别于之前所有序列模型的根本创新。它让模型能够直接"看到"序列中任意两个位置的关系，而不需要像 RNN 那样一步步传递信息。</p>
+
+  <h3>第一性原理：为什么需要注意力？</h3>
+  <p>想象你在读一句话："我去银行存钱，因为我需要支付房租。"当你读到"支付"时，你需要回想前面的"房租"和"银行"。大脑会自动把"支付"和"房租"关联起来，把"银行"和"存钱"关联起来。</p>
+  <p>RNN 只能把前面所有信息压缩成一个隐藏状态，容易丢失细节。注意力则允许每个词直接"查询"其他所有词，决定自己应该关注什么。</p>
+
+  <h3>自注意力的计算过程（直觉 + 数学）</h3>
+  <p>自注意力可以拆成三个概念：Query、Key、Value。可以这样理解：</p>
+  <ul>
+    <li><strong>Query (Q)</strong>：当前词"想问什么问题"？（"谁和我相关？"）</li>
+    <li><strong>Key (K)</strong>：其他每个词"有什么信息"？（"我是第 3 个词，内容是 '存钱'"）</li>
+    <li><strong>Value (V)</strong>：如果相关，其他词"要传递什么内容"？</li>
+  </ul>
+  <p>计算分为五步：</p>
+  <ol>
+    <li><strong>Q × K 点积</strong>：每个词和其他所有词做点积，得到一个"注意力分数"矩阵（T×T）。数值越大表示越相关。</li>
+    <li><strong>缩放（Scale）</strong>：除以 sqrt(d_k)，防止维度高时点积太大把 softmax 推向极端。</li>
+    <li><strong>因果掩码（Mask）</strong>：GPT 只能看左边的词，所以把未来位置设为 -inf（softmax 后变成 0）。</li>
+    <li><strong>Softmax</strong>：把每一行的分数归一化成概率分布。</li>
+    <li><strong>加权求和</strong>：用概率分布对 Value 做加权平均，得到每个位置的输出。</li>
+  </ol>
+
+  <p>用公式表达（单头注意力）：</p>
+  <div class="formula">Attention(Q, K, V) = softmax(QK^T / √d_k) · V</div>
+
+  <h3>多头注意力机制</h3>
+  <p>与其让一个注意力"专家"处理所有关系，不如让多个专家各司其职。每个头学习不同类型的注意力：一个头可能关注语法关系（哪个形容词修饰哪个名词），另一个头关注位置关系（"他"指代前文提到的谁），还有一个头关注语义相关性（"银行"和"存钱"的关联）。</p>
+  <p>计算时，Q、K、V 被分割成 n_head 份。每个头独立计算注意力，结果再拼接并通过一个线性投影合并。在 minGPT 的 gpt-nano 中：n_embd=48, n_head=3，每个头看到 16 维——这意味着每个头只在一个子空间里计算关系，但它们各自的贡献拼接起来后仍然恢复到完整的 48 维表达。</p>
+
+  <h3>与 RNN/LSTM 的本质对比</h3>
+  <table>
+    <tr><th>特性</th><th>RNN/LSTM</th><th>Transformer Self-Attention</th></tr>
+    <tr><td>并行度</td><td>极差（必须一步步走）</td><td>全部位置同时计算</td></tr>
+    <tr><td>长距离依赖</td><td>路径长度随序列长度增长（T 步传递，实践中很难学到远距离依赖）</td><td>一步直达，路径长度=1</td></tr>
+    <tr><td>梯度问题</td><td>严重的梯度消失/爆炸</td><td>残差连接后梯度非常稳定</td></tr>
+    <tr><td>计算复杂度</td><td>O(T·d²)</td><td>O(T²·d)</td></tr>
+    <tr><td>位置编码</td><td>天然有序（一步步来）</td><td>必须外加位置信息</td></tr>
+    <tr><td>可解释性</td><td>隐藏状态难解释</td><td>注意力权重可直接可视化</td></tr>
+  </table>
+
+  <p>RNN 的关键弱点在于"信息瓶颈"——每个时间步只有一个隐藏状态向量，无法保存所有历史细节。注意力的核心优势在于"直接访问"——每个位置可以直接查看任何其他位置。实际上，Transformer 在许多领域的成功正是源于去除了归纳偏置（inductive biases），让模型自己从数据中发现模式。</p>
+
+  <h3>与线性注意力 / State Space Model 的对比</h3>
+  <p>最近的工作（Mamba、RWKV、RetNet）探索了替代注意力的线性复杂度架构：</p>
+  <ul>
+    <li><strong>线性注意力 / Mamba</strong>：用递归或状态空间模型替代 QK^T，将复杂度从 O(T²) 降到 O(T)。但代价是失去了"任意位置直接访问"的能力。</li>
+    <li><strong>RWKV</strong>：结合了 Transformer 的训练便利性和 RNN 的推理效率。</li>
+    <li><strong>RetNet</strong>：提出"保留机制"，在并行训练和递归推理之间优雅切换。</li>
+  </ul>
+  <p>这些工作的共同主题：能否在保持 Transformer 质量的同时，消除 O(T²) 的扩展瓶颈？到目前为止，对于非常长的序列（>16K token），这些替代方案确实有优势；但对于大多数 LLM 应用（4K-8K 长度），标准注意力仍然是默认选择。</p>
+
+  <h3>注意力作为"软性字典查找"</h3>
+  <p>理解注意力的另一种方式是"软性字典查询"：</p>
+  <ul>
+    <li>你有一个键-值字典 {key_i: value_i}。</li>
+    <li>当输入一个查询 q 时，你不只找一个精确匹配的键；你对所有键都计算"兼容性分数"。</li>
+    <li>结果是从所有值中插值出来的——根据与每个键的匹配程度加权平均。</li>
+  </ul>
+  <p>这就是为什么它被称为"软性"——它不是硬性选择某一个值，而是所有值的加权混合。softmax 的温度控制这个混合有多"尖锐"（是否接近 one-hot 选择）。</p>
+
+  <h3>多头注意力的不同"专家"</h3>
+  <p>多头注意力之所以有效，是因为不同的头可以学习到不同类型的注意力模式：</p>
+  <ul>
+    <li>有些头主要关注<strong>语法关系</strong>（主语-动词一致性、形容词-名词修饰）。</li>
+    <li>有些头关注<strong>位置关系</strong>（相邻词、前一句的对应词）。</li>
+    <li>有些头关注<strong>语义内容</strong>（"它"指代什么，"银行"在说什么语境）。</li>
+    <li>有些头可能是<strong>冗余的</strong>（提供类似信息的多个视角，增加鲁棒性）。</li>
+  </ul>
+
+  <h3>与高效注意力变体的对比</h3>
+  <table>
+    <tr><th>变体</th><th>复杂度</th><th>关键思想</th></tr>
+    <tr><td>标准注意力</td><td>O(T²·d)</td><td>每个位置关注所有位置</td></tr>
+    <tr><td>FlashAttention</td><td>O(T²·d) 但快得多</td><td>分块 + 融合 softmax，IO 感知算法</td></tr>
+    <tr><td>Performer (FAVOR+)</td><td>O(T·d²)</td><td>核方法近似 softmax</td></tr>
+    <tr><td>GQA / MQA</td><td>O(T²·d) 但 KV 缓存小得多</td><td>多个查询头共享键/值</td></tr>
+    <tr><td>Sliding Window</td><td>O(T·W·d)</td><td>每个位置只看窗口 W 内的局部邻居</td></tr>
+  </table>
+
+  <h3>因果掩码（Causal Mask）的重要性</h3>
+  <p>在自回归语言模型中，因果掩码防止每个位置"偷看"未来的 token。这是 GPT 与 BERT 的核心区别之一：</p>
+  <ul>
+    <li>没有因果掩码：双向注意力（BERT）——每个位置看到整个序列，适合理解任务。</li>
+    <li>有因果掩码：单向注意力（GPT）——每个位置只看到自己和之前的位置，适合生成任务。</li>
+  </ul>
+  <p>在 minGPT 中，因果掩码通过一个下三角布尔矩阵实现。代码中直接创建并缓存它：</p>
+  <pre><code># causal mask to hide future tokens
+self.register_buffer("bias", torch.tril(torch.ones(block_size, block_size))
+                             .view(1, 1, block_size, block_size))</code></pre>
+
+  <h3>用具体的 3-token 例子跟踪注意力</h3>
+  <p>假设序列是 "I like cats"（3 个 token）。token 0="I"，token 1="like"，token 2="cats"。</p>
+  <p>当我们为 token 1 计算输出时（它是第 2 个词 "like"）：</p>
+  <ul>
+    <li><strong>Step 1（生成 Q1）</strong>："like" 用一个投影矩阵乘以它的嵌入，生成查询向量 q1。</li>
+    <li><strong>Step 2（准备 K、V）</strong>：所有三个 token 也都生成各自的键 k0、k1、k2 和值 v0、v1、v2。</li>
+    <li><strong>Step 3（计算分数）</strong>：q1·k0（"like" vs "I"）= 0.7，q1·k1（"like" vs "like"）= 1.2，q1·k2（"like" vs "cats"）= -0.3。</li>
+    <li><strong>Step 4（因果掩码 + Softmax）</strong>：分数 → [0.7, 1.2, -inf] → softmax → [0.38, 0.62, 0.0]。</li>
+    <li><strong>Step 5（加权和）</strong>："like" 的输出 = 0.38×v0 + 0.62×v1。它完全忽略了 token 2（cats），因为因果掩码把它屏蔽了。</li>
+  </ul>
+  <p>这就是每一个 token 在每一层如何"关注"左边所有 token 的过程。在多头注意力中，这个五步过程会在 n_head 个不同的 Q/K/V 子空间上并行发生（gpt-nano 中是 3 个头）。</p>
+
+  <h3>核心代码实现（mingpt/model.py）</h3>
+  <pre><code>class CausalSelfAttention(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        assert config.n_embd % config.n_head == 0
+        # key, query, value projections for all heads
+        self.c_attn = nn.Linear(config.n_embd, 3 * config.n_embd)
+        # output projection
+        self.c_proj = nn.Linear(config.n_embd, config.n_embd)
+        # regularization
+        self.attn_dropout = nn.Dropout(config.attn_pdrop)
+        self.resid_dropout = nn.Dropout(config.resid_pdrop)
+        # causal mask
+        self.register_buffer("bias", torch.tril(
+            torch.ones(config.block_size, config.block_size))
+            .view(1, 1, config.block_size, config.block_size))</code></pre>
+
+  <p><code>c_attn</code> 是一个单独的线性层，一次性生成 Q、K、V（3 倍嵌入维度）。然后通过 <code>.split</code> 将它们拆开。然后进行批量矩阵乘法计算注意力分数。</p>
+
+  <h3>minGPT 实现中的实践洞察</h3>
+  <p>minGPT 的实现虽然简洁，但包含了所有核心要素：</p>
+  <ul>
+    <li>多头注意力在 gpt-nano 中：48 维嵌入被 3 个头分成 3×16 维。每个头只在一个 16 维子空间上计算注意力——但它们的输出拼接后恢复到完整的 48 维。</li>
+    <li>因果掩码使用 <code>masked_fill</code>：将来位置设为 -inf，让 softmax 输出 0。这个操作虽然简单，但实际计算中仍然会为未来位置进行完整的 QK^T 计算——只是结果被忽略了。FlashAttention 等优化可以跳过这些计算。</li>
+    <li>注意力 dropout 是在注意力权重上应用的（softmax 之后），而不是在分数上。这类似于在"软性选择"中随机丢弃一些连接。</li>
+  </ul>
+
+  <h3>交互式注意力小工具</h3>
+  <p>下面的交互式工具让你逐步查看 4 个 token 的注意力过程。点击"Next Step"逐步推演，或用滑块调整某个 token 的查询向量，观察注意力分布如何变化。</p>
+  <div id="attn-toy" class="toy-container"><div class="attn-grid"><div class="attn-step"><div class="step-label">Step 0: Input tokens</div><div class="token-row"><span class="token t0">I</span><span class="token t1">like</span><span class="token t2">cats</span><span class="token t3">&lt;pad&gt;</span></div></div><div class="attn-step"><div class="step-label">Step 1: QKV projection</div><div class="qkv-vis"><div class="qkv-row"><span class="qkv-label">Q</span><div class="qkv-bar" style="width:40%"></div></div><div class="qkv-row"><span class="qkv-label">K</span><div class="qkv-bar" style="width:55%"></div></div><div class="qkv-row"><span class="qkv-label">V</span><div class="qkv-bar" style="width:35%"></div></div></div></div><div class="attn-step"><div class="step-label">Step 2: Attention scores (Q·K)</div><div class="score-matrix"><div class="score-row"><span class="token-ref">I</span><span class="score s0">0.7</span><span class="score s1">0.2</span><span class="score s2">-0.1</span><span class="score s3">0.0</span></div><div class="score-row"><span class="token-ref">like</span><span class="score s0">0.3</span><span class="score s1">1.2</span><span class="score s2">0.5</span><span class="score s3">0.0</span></div><div class="score-row"><span class="token-ref">cats</span><span class="score s0">-0.2</span><span class="score s1">0.4</span><span class="score s2">0.9</span><span class="score s3">0.0</span></div><div class="score-row"><span class="token-ref">&lt;pad&gt;</span><span class="score s0">0.0</span><span class="score s1">0.0</span><span class="score s2">0.0</span><span class="score s3">0.0</span></div></div></div></div></div>
+</section><!-- ===== BLOCK ===== -->
+<section id="block">
+  <h3>7. Transformer Block 详解</h3>
+
+  <p>Transformer Block 是 GPT 的基本构建单元。每个 Block 包含两个子层，每个子层周围都有残差连接和层归一化（LayerNorm）。</p>
+
+  <div class="diagram" style="text-align:center;padding:1rem">
+    <svg width="400" height="480" viewBox="0 0 400 480" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="12">
+      <defs>
+        <linearGradient id="b1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2f364a"/><stop offset="100%" stop-color="#1a2332"/></linearGradient>
+        <marker id="arr" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#6c9eff"/></marker>
+      </defs>
+      <rect x="100" y="10" width="200" height="50" rx="8" fill="url(#b1)" stroke="#6c9eff"/>
+      <text x="200" y="40" text-anchor="middle" fill="#6c9eff" font-weight="bold">输入 x</text>
+      <line x1="200" y1="60" x2="200" y2="90" stroke="#6c9eff" stroke-width="2"/>
+      <rect x="100" y="90" width="200" height="40" rx="8" fill="url(#b1)" stroke="#f5a623"/>
+      <text x="200" y="115" text-anchor="middle" fill="#f5a623">LayerNorm</text>
+      <line x1="200" y1="130" x2="200" y2="155" stroke="#f5a623" stroke-width="2"/>
+      <rect x="100" y="155" width="200" height="50" rx="8" fill="url(#b1)" stroke="#34d399"/>
+      <text x="200" y="185" text-anchor="middle" fill="#34d399" font-weight="bold">多头注意力</text>
+      <line x1="200" y1="205" x2="200" y2="230" stroke="#34d399" stroke-width="2"/>
+      <rect x="100" y="230" width="80" height="30" rx="5" fill="url(#b1)" stroke="#9aa3b8"/>
+      <text x="140" y="250" text-anchor="middle" fill="#9aa3b8" font-size="10">残差 +</text>
+      <line x1="280" y1="35" x2="310" y2="35" stroke="#9aa3b8" stroke-width="1.5" stroke-dasharray="4"/>
+      <line x1="310" y1="35" x2="310" y2="245" stroke="#9aa3b8" stroke-width="1.5" stroke-dasharray="4"/>
+      <line x1="310" y1="245" x2="220" y2="245" stroke="#9aa3b8" stroke-width="1.5" stroke-dasharray="4" marker-end="url(#arr)"/>
+      <line x1="200" y1="260" x2="200" y2="290" stroke="#6c9eff" stroke-width="2"/>
+      <rect x="100" y="290" width="200" height="40" rx="8" fill="url(#b1)" stroke="#f5a623"/>
+      <text x="200" y="315" text-anchor="middle" fill="#f5a623">LayerNorm</text>
+      <line x1="200" y1="330" x2="200" y2="355" stroke="#f5a623" stroke-width="2"/>
+      <rect x="100" y="355" width="200" height="50" rx="8" fill="url(#b1)" stroke="#a78bfa"/>
+      <text x="200" y="385" text-anchor="middle" fill="#a78bfa" font-weight="bold">前馈网络 (FFN)</text>
+      <line x1="200" y1="405" x2="200" y2="430" stroke="#a78bfa" stroke-width="2"/>
+      <rect x="100" y="430" width="80" height="30" rx="5" fill="url(#b1)" stroke="#9aa3b8"/>
+      <text x="140" y="450" text-anchor="middle" fill="#9aa3b8" font-size="10">残差 +</text>
+      <line x1="280" y1="315" x2="310" y2="315" stroke="#9aa3b8" stroke-width="1.5" stroke-dasharray="4"/>
+      <line x1="310" y1="315" x2="310" y2="445" stroke="#9aa3b8" stroke-width="1.5" stroke-dasharray="4"/>
+      <line x1="310" y1="445" x2="220" y2="445" stroke="#9aa3b8" stroke-width="1.5" stroke-dasharray="4" marker-end="url(#arr)"/>
+      <text x="200" y="475" text-anchor="middle" fill="#6c9eff" font-size="11">输出 x' = x + Sublayer(LayerNorm(x))</text>
+    </svg>
+  </div>
+
+  <p>一个标准的 Transformer Block 遵循 Pre-LayerNorm 模式（GPT-2 引入）：</p>
+  <div class="formula">x ← x + Attention(LayerNorm(x))
+x ← x + FFN(LayerNorm(x))</div>
+
+  <p>其中 Attention 可以是因果自注意力、交叉注意力或掩码注意力。在 GPT 的纯 decoder 架构中，所有 Block 都使用因果自注意力。</p>
+
+  <h3>为什么 Transformer Block 要这样设计？</h3>
+  <p>可以把一个 Block 类比为一场高效的会议：</p>
+  <ul>
+    <li><strong>LayerNorm（调节音量）</strong>：在每个人发言前，先把所有人的音量调到统一水平。LayerNorm 稳定了每个子层的输入分布，使训练更加稳健。</li>
+    <li><strong>注意力（讨论环节）</strong>：每个人查看其他人说的内容，决定自己要说什么。这是信息交换的环节。</li>
+    <li><strong>残差连接（保留笔记）</strong>：即使讨论跑偏了，你还有之前的笔记可以参考。这使得梯度可以直接流过整个网络，解决了深层网络的退化问题。</li>
+    <li><strong>FFN（深入思考）</strong>：在获取了所有信息后，FFN 让每个位置独立地"深入思考"——将收集到的信息转换成更有用的表示。</li>
+  </ul>
+
+  <h3>FFN 的 4 倍扩展——为什么有效？</h3>
+  <p>前馈网络通常将嵌入维度扩展到 4 倍：n_embd → 4×n_embd → n_embd。这样设计是因为它给模型提供了一个"暂存空间"来扩展中间表示。注意力负责收集信息（跨位置的混合），而 FFN 负责处理信息（每个位置的独立转换）。4× 倍率是实践中被证明效果良好的选择，现代架构如 LLaMA 和 Mistral 也继承了这一设计。</p>
+
+  <h3>Block 设计演进与现代变体</h3>
+  <table>
+    <tr><th>架构</th><th>归一化位置</th><th>激活函数</th><th>FFN 变体</th></tr>
+    <tr><td>原始 Transformer (2017)</td><td>Post-LN（每个子层之后）</td><td>ReLU</td><td>标准 FFN</td></tr>
+    <tr><td>GPT-2 (2019)</td><td>Pre-LN（每个子层之前）</td><td>GELU</td><td>标准 FFN</td></tr>
+    <tr><td>LLaMA (2023)</td><td>Pre-LN (RMSNorm)</td><td>SwiGLU</td><td>8/3 × 倍率的门控 FFN</td></tr>
+    <tr><td>Mistral (2023)</td><td>Pre-LN (RMSNorm)</td><td>SiLU</td><td>滑动窗口注意力 + 标准 FFN</td></tr>
+  </table>
+
+  <h3>设计要点（简化版）</h3>
+  <ul>
+    <li><strong>为什么先 LayerNorm 再子层？</strong> GPT-2 发现 Pre-LN 更稳定——梯度可以直接通过残差路径流动。Post-LN 在深层网络中容易导致训练不稳定。</li>
+    <li><strong>注意力 + FFN 的顺序重要吗？</strong> 经验表明"先注意力再 FFN"比反过来要好。注意力负责混合信息，FFN 负责独立处理——先获取上下文再深入思考更合理。</li>
+    <li><strong>Dropout</strong>：在注意力权重上和残差输出上应用 dropout 作为正则化。对于小模型，dropout 很有帮助（防止过拟合）；对于大模型和大量数据，dropout 通常被关闭或设得很小。</li>
+  </ul>
+</section><!-- ===== GPT ===== -->
+<section id="gpt">
+  <h3>8. GPT 完整架构与设计选择</h3>
+
+  <p>现在我们将所有组件组合成完整的 GPT 模型。从嵌入层到输出层，GPT 是一个纯 decoder-only 的 Transformer 架构。</p>
+
+  <h3>GPT 完整数据流</h3>
+  <ol>
+    <li><strong>Token 嵌入</strong>：输入 token ID 通过 wte（词嵌入矩阵）映射为密集向量。形状：(B, T) → (B, T, n_embd)。</li>
+    <li><strong>位置嵌入</strong>：通过 wpe（位置嵌入矩阵）为每个位置添加位置信息。形状：(T,) → (T, n_embd)。广播到批次维度。</li>
+    <li><strong>逐 Block 处理</strong>：通过 n_layer 个 Transformer Block 依次处理。每个 Block 保持形状 (B, T, n_embd)。</li>
+    <li><strong>最终 LayerNorm</strong>：在输出到 lm_head 之前做一次归一化。</li>
+    <li><strong>LM Head</strong>：将 (B, T, n_embd) 投影到 (B, T, vocab_size)，得到每个位置对词表中每个词的分数（logits）。</li>
+    <li><strong>（推理时）Softmax + 采样</strong>：logits → softmax → 概率分布 → 采样下一个 token。</li>
+  </ol>
+
+  <h3>架构对比：BERT、LLaMA、Mistral 等</h3>
+  <table>
+    <tr><th>架构</th><th>注意力模式</th><th>归一化</th><th>激活函数</th><th>位置编码</th></tr>
+    <tr><td>GPT-2</td><td>因果（decoder-only）</td><td>Pre-LN</td><td>GELU</td><td>可学习</td></tr>
+    <tr><td>BERT</td><td>双向（encoder-only）</td><td>Post-LN</td><td>GELU</td><td>可学习</td></tr>
+    <tr><td>LLaMA</td><td>因果 + 分组查询注意力</td><td>RMSNorm (Pre)</td><td>SwiGLU</td><td>RoPE</td></tr>
+    <tr><td>Mistral</td><td>因果 + 滑动窗口</td><td>RMSNorm (Pre)</td><td>SiLU</td><td>RoPE</td></tr>
+    <tr><td>GPT-3</td><td>因果（decoder-only）</td><td>Pre-LN</td><td>GELU</td><td>可学习</td></tr>
+  </table>
+
+  <h3>为什么 Pre-LN 比 Post-LN 更稳定？</h3>
+  <p>在 Post-LN 中，层归一化在残差相加之后：Output = LN(x + Sublayer(x))。这意味着归一化在残差混合之后进行，梯度的路径更长。在 Pre-LN 中：Output = x + Sublayer(LN(x))。归一化在子层之前，残差路径是完全不受干扰的——梯度可以直接流过整个网络。实验表明，Pre-LN 允许更高的学习率和更深层的网络而不爆炸。</p>
+
+  <h3>架构演进：代码级深入解析</h3>
+
+  <h4>RMSNorm vs LayerNorm</h4>
+  <p>RMSNorm 是 LayerNorm 的简化版本——它只对均方根进行归一化，而不减去均值。LLaMA 证明了这对 Transformer 训练同样有效，且节省了约 5-10% 的归一化计算量。</p>
+  <pre><code># LayerNorm: y = (x - E[x]) / sqrt(Var[x] + eps) * gamma + beta
+# RMSNorm:  y = x / sqrt(mean(x^2) + eps) * gamma</code></pre>
+
+  <h4>SwiGLU vs GELU</h4>
+  <p>SwiGLU 是 Swish + GLU（门控线性单元）的组合。相比 GELU，它在相同的计算预算下通常能获得更好的质量。代价是 FFN 的参数增加了约 33%（因为门控需要额外的投影矩阵）。</p>
+  <pre><code># GELU:            output = x * Phi(x)
+# SwiGLU:          output = (x * sigmoid(x * beta)) * (W_gate * x)</code></pre>
+
+  <h4>从 MHA 到 GQA：KV Cache 的演进</h4>
+  <p>多头注意力（MHA）中每个头都有自己的 K 和 V。对于长序列，KV cache 变得巨大，成为推理的瓶颈。GQA（分组查询注意力）让多个查询头共享键和值头，在几乎不损失质量的情况下大幅减少了 KV cache 大小。</p>
+
+  <div class="diagram" style="text-align:center;padding:0.5rem">
+    <svg width="400" height="160" viewBox="0 0 400 160" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="10">
+      <rect x="10" y="15" width="120" height="130" rx="6" fill="#2f364a" stroke="#6c9eff"/>
+      <text x="70" y="35" text-anchor="middle" fill="#6c9eff" font-weight="bold">MHA</text>
+      <text x="70" y="55" text-anchor="middle" fill="#e8eaf0">Q1 K1 V1</text>
+      <text x="70" y="70" text-anchor="middle" fill="#e8eaf0">Q2 K2 V2</text>
+      <text x="70" y="85" text-anchor="middle" fill="#f5a623">...8 heads...</text>
+      <text x="70" y="105" text-anchor="middle" fill="#e8eaf0">Q8 K8 V8</text>
+      <text x="70" y="130" text-anchor="middle" fill="#f87171" font-size="9">KV 大</text>
+      <rect x="145" y="15" width="110" height="130" rx="6" fill="#2f364a" stroke="#34d399"/>
+      <text x="200" y="35" text-anchor="middle" fill="#34d399" font-weight="bold">GQA</text>
+      <text x="200" y="55" text-anchor="middle" fill="#e8eaf0">Q1 Q2 K1 V1</text>
+      <text x="200" y="75" text-anchor="middle" fill="#e8eaf0">Q3 Q4 K2 V2</text>
+      <text x="200" y="95" text-anchor="middle" fill="#f5a623">4 组</text>
+      <text x="200" y="130" text-anchor="middle" fill="#34d399" font-size="9">KV 中</text>
+      <rect x="270" y="15" width="120" height="130" rx="6" fill="#2f364a" stroke="#a78bfa"/>
+      <text x="330" y="35" text-anchor="middle" fill="#a78bfa" font-weight="bold">MQA</text>
+      <text x="330" y="55" text-anchor="middle" fill="#e8eaf0">Q1 Q2 Q3 Q4</text>
+      <text x="330" y="75" text-anchor="middle" fill="#e8eaf0">Q5 Q6 Q7 Q8</text>
+      <text x="330" y="95" text-anchor="middle" fill="#e8eaf0">共享 K1 V1</text>
+      <text x="330" y="130" text-anchor="middle" fill="#a78bfa" font-size="9">KV 最小</text>
+    </svg>
+  </div>
+
+  <h3>前向传播</h3>
+  <pre><code>def forward(self, idx):
+    B, T = idx.shape
+    # token + position embeddings
+    tok_emb = self.transformer.wte(idx)
+    pos_emb = self.transformer.wpe(torch.arange(T, device=idx.device))
+    x = tok_emb + pos_emb
+    # forward through transformer blocks
+    for block in self.transformer.h:
+        x = block(x)
+    # final layer norm
+    x = self.transformer.ln_f(x)
+    # language modeling head
+    logits = self.lm_head(x)
+    return logits</code></pre>
+
+  <h3>权重初始化</h3>
+  <p>minGPT 使用 N(0, 0.02) 初始化所有权重。为什么是 0.02？因为 Transformer 的残差路径会导致方差累积。具体来说，GPT-2 对残差投影（注意力输出和 FFN 输出）使用了 <code>N(0, 0.02/sqrt(2*n_layer))</code> 的缩放初始化，以抵消深层网络中残差方差累积的影响。这个细节对于小模型（minGPT 级别）影响不大，但在 48 层以上的模型中会显著影响训练稳定性。</p>
+
+  <h3>优化器配置（configure_optimizers）</h3>
+  <p>minGPT 将参数分为两组：<code>decay</code>（线性层权重，应用权重衰减）和 <code>no_decay</code>（偏置、LayerNorm 参数、嵌入权重）。这种分离是 GPT 训练的标准实践——对偏置和归一化参数应用正则化没有意义，因为它们的维度很低或作用不同。</p>
+
+  <h3>加载预训练权重（from_pretrained）</h3>
+  <p>minGPT 支持从 Hugging Face 加载 GPT-2 预训练权重。这需要在两个框架之间映射参数名称。虽然 minGPT 本身通常只用于从头训练，但这个功能让你可以加载一个完整的 GPT-2 并用 generate.ipynb 体验文本生成。</p>
+  <div class="warning">
+    <strong>磁盘提醒：</strong><code>from_pretrained(model_type)</code> 会把模型权重下载到 Hugging Face 缓存目录。学习生成流程时使用 <code>gpt2</code> 就够了；不要随手把 <code>model_type</code> 改成 <code>gpt2-xl</code>，它会下载数 GB 权重，并且加载时也需要大量内存/显存。
+  </div>
+</section><!-- ===== ACTIVATIONS INTRO ===== -->
+<section id="activations">
+  <h2>9. 激活函数总览</h2>
+  <p>激活函数为神经网络引入<strong>非线性</strong>。如果没有它们，多个线性层等价于单个线性层。minGPT 主要使用以下激活函数：</p>
+  <table>
+    <tr><th>函数</th><th>位置</th><th>用途</th></tr>
+    <tr><td><strong>GELU</strong></td><td>FFN 中间层（NewGELU）</td><td>平滑非线性，GPT/BERT 标准激活函数</td></tr>
+    <tr><td><strong>Softmax</strong></td><td>注意力权重、生成采样</td><td>将 logits 转换为概率分布</td></tr>
+    <tr><td><strong>Tanh</strong></td><td>GELU 近似公式内部</td><td>S 形有界函数，用于 GELU 快速近似</td></tr>
+  </table>
+  <div class="note">下方的图表支持<strong>悬停</strong>查看任意 x 对应的函数值。它们展示了精确 GELU、NewGELU 近似和 ReLU 的对比，突出平滑性和负值处理上的差异。</div>
+</section>
+<!-- ===== GELU ===== -->
+<section id="gelu">
+  <h2>10. GELU — 高斯误差线性单元</h2>
+  <p>GELU 是 GPT-2 选择的激活函数。它比 ReLU 更平滑，不会完全截断小的负值。</p>
+
+  <div class="formula">
+    GELU(x) = x · Φ(x)<br>
+    其中 Φ(x) 是标准正态分布的累积分布函数（CDF）
+  </div>
+
+  <h3>精确公式 vs 近似公式</h3>
+  <p>精确 GELU 需要计算误差函数 erf，速度较慢。minGPT 使用 <code>NewGELU</code>，它采用 tanh 泰勒展开近似（与 Google BERT / OpenAI GPT 相同）：</p>
+  <div class="formula">
+    GELU(x) ≈ 0.5x · ( 1 + tanh( √(2/π) · (x + 0.044715x³) ) )
+  </div>
+
+  <h3>交互式 GELU vs ReLU 图表</h3>
+  <div class="chart-wrapper">
+    <div class="chart-container">
+      <canvas id="chart-gelu" style="height:320px"></canvas>
+      <div id="chart-gelu-tip" class="chart-tooltip"></div>
+    </div>
+    <div class="chart-legend">
+      <span class="legend-item"><span class="legend-swatch" style="background:#6c9eff"></span> GELU 精确</span>
+      <span class="legend-item"><span class="legend-swatch" style="background:#a78bfa;border-top:2px dashed #a78bfa"></span> GELU 近似 (NewGELU)</span>
+      <span class="legend-item"><span class="legend-swatch" style="background:#fb923c"></span> ReLU</span>
+    </div>
+  </div>
+
+  <h3>GELU 与 ReLU 对比</h3>
+  <table>
+    <tr><th>属性</th><th>ReLU</th><th>GELU</th></tr>
+    <tr><td>公式</td><td>max(0, x)</td><td>x · Φ(x)</td></tr>
+    <tr><td>x &lt; 0 时的行为</td><td>输出恒为 0（硬截断）</td><td>输出接近 0 但不为零（软截断）</td></tr>
+    <tr><td>平滑性</td><td>在 x=0 处不可导</td><td>处处光滑可导</td></tr>
+    <tr><td>负值信息</td><td>完全丢弃</td><td>按概率加权保留</td></tr>
+    <tr><td>NLP 表现</td><td>基线</td><td>GPT-2/BERT 验证更优</td></tr>
+  </table>
+
+  <h3>导数对比</h3>
+  <p>平滑的导数使梯度更稳定，有利于深层网络训练。</p>
+  <div class="chart-wrapper">
+    <div class="chart-container">
+      <canvas id="chart-gelu-deriv" style="height:280px"></canvas>
+      <div id="chart-gelu-deriv-tip" class="chart-tooltip"></div>
+    </div>
+  </div>
+
+  <h3>代码实现</h3>
+<pre><code>class NewGELU(nn.Module):
+    def forward(self, x):
+        return 0.5 * x * (1.0 + torch.tanh(
+            math.sqrt(2.0 / math.pi) * (x + 0.044715 * torch.pow(x, 3.0))
+        ))</code></pre>
+</section>
+<!-- ===== SOFTMAX ===== -->
+<section id="softmax">
+  <h2>11. Softmax 函数</h2>
+  <p>Softmax 将任意实值向量转换为<strong>概率分布</strong>（所有值 ∈ (0,1)，总和为 1）。在 minGPT 中用于两个地方：</p>
+  <ol>
+    <li><strong>注意力</strong>：将 Q·Kᵀ 分数转换为注意力权重</li>
+    <li><strong>文本生成</strong>：将最后一个位置的 logits 转换为下一个 token 的概率</li>
+  </ol>
+
+  <div class="formula">
+    softmax(zᵢ) = exp(zᵢ) / Σⱼ exp(zⱼ)
+  </div>
+
+  <h3>交互式 Softmax 可视化</h3>
+  <div class="chart-container">
+    <canvas id="chart-softmax" style="height:320px"></canvas>
+  </div>
+
+  <h3>数值稳定性技巧</h3>
+  <p>直接计算 exp 可能溢出。实际实现先减去最大值：</p>
+  <div class="formula">softmax(z) = softmax(z - max(z))</div>
+  <p>PyTorch 的 <code>F.softmax</code> 在内部处理了这个问题。</p>
+
+  <h3>温度（Temperature）缩放</h3>
+  <p>生成时，温度控制随机性：</p>
+  <div class="formula">P(token) = softmax(logits / temperature)</div>
+  <table>
+    <tr><th>temperature</th><th>效果</th></tr>
+    <tr><td>&lt; 1.0</td><td>分布更尖锐 → 更确定性、更重复</td></tr>
+    <tr><td>= 1.0</td><td>原始分布</td></tr>
+    <tr><td>&gt; 1.0</td><td>分布更平坦 → 更随机、更多样化</td></tr>
+  </table>
+
+  <h3>Tanh（用于 GELU 近似计算）</h3>
+  <div class="chart-wrapper">
+    <div class="chart-container">
+      <canvas id="chart-tanh" style="height:260px"></canvas>
+      <div id="chart-tanh-tip" class="chart-tooltip"></div>
+    </div>
+  </div>
+</section>
+<!-- ===== BPE ===== -->
+<section id="bpe">
+  <h2>12. BPE 分词器（字节对编码）</h2>
+  <p>BPE 将任意 UTF-8 文本编码为整数序列。它是 GPT-2 使用的分词方案，词汇表大小为 50,257。</p>
+
+  <p><strong>图：BPE 分词流程</strong></p>
+  <p>下图展示了从原始文本到最终 token ID 的四个主要步骤：</p>
+  <ol>
+    <li>正则表达式预分词：按空格、标点、撇号等将句子分割为粗粒度片段。</li>
+    <li>字节映射（bytes→unicode）：将每个 UTF-8 字节映射到"可显示"的 Unicode 字符（空格变成 Ġ）。</li>
+    <li>BPE 合并：应用训练好的合并规则，自底向上合并频繁出现的字节对为子词。</li>
+    <li>获得最终 token ID，输入 Transformer。</li>
+  </ol>
+  <p>与 BERT 的 WordPiece 或 LLaMA 的 SentencePiece 相比，GPT-2 BPE 的标志性特点是将前导空格编码到 token 中（Ġ），使模型能更好地区分词边界。字节级方案（如 ByT5）完全跳过合并步骤，但会产生更长的序列。</p>
+
+  <div class="diagram">
+    <svg width="700" height="200" viewBox="0 0 700 200" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="12">
+      <defs><marker id="a4" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#6c9eff"/></marker></defs>
+      <rect x="10" y="70" width="100" height="40" rx="6" fill="#2f364a" stroke="#e8eaf0"/><text x="60" y="95" text-anchor="middle" fill="#e8eaf0">原始文本</text>
+      <rect x="140" y="70" width="110" height="40" rx="6" fill="#1e3a5f" stroke="#6c9eff"/><text x="195" y="88" text-anchor="middle" fill="#6c9eff">Regex 预分词</text><text x="195" y="103" text-anchor="middle" fill="#9aa3b8" font-size="10">正则分割</text>
+      <rect x="280" y="70" width="110" height="40" rx="6" fill="#343c52" stroke="#a78bfa"/><text x="335" y="88" text-anchor="middle" fill="#a78bfa">字节映射</text><text x="335" y="103" text-anchor="middle" fill="#9aa3b8" font-size="10">bytes→unicode</text>
+      <rect x="420" y="70" width="110" height="40" rx="6" fill="#14352a" stroke="#34d399"/><text x="475" y="88" text-anchor="middle" fill="#34d399">BPE 合并</text><text x="475" y="103" text-anchor="middle" fill="#9aa3b8" font-size="10">查合并表</text>
+      <rect x="560" y="70" width="120" height="40" rx="6" fill="#2a1f14" stroke="#fb923c"/><text x="620" y="95" text-anchor="middle" fill="#fb923c">token ID</text>
+      <line x1="110" y1="90" x2="140" y2="90" stroke="#6c9eff" marker-end="url(#a4)"/>
+      <line x1="250" y1="90" x2="280" y2="90" stroke="#a78bfa" marker-end="url(#a4)"/>
+      <line x1="390" y1="90" x2="420" y2="90" stroke="#34d399" marker-end="url(#a4)"/>
+      <line x1="530" y1="90" x2="560" y2="90" stroke="#fb923c" marker-end="url(#a4)"/>
+      <text x="350" y="150" text-anchor="middle" fill="#9aa3b8" font-size="11">示例："Hello world" → [15496, 995] → Transformer 输入</text>
+    </svg>
+  </div>
+
+  <h3>编码流程</h3>
+  <ol>
+    <li><strong>预分词</strong>：使用正则表达式将文本分割为单词片段（处理空格、标点等）</li>
+    <li><strong>字节映射</strong>：将每个字节（0-255）映射到可打印的 Unicode 字符（避免不可见字符）</li>
+    <li><strong>BPE 合并</strong>：应用训练好的 merge ranks，迭代合并优先级最高的字节对</li>
+    <li><strong>查找</strong>：在 encoder.json 词汇表中查找合并后的 token，获取整数 ID</li>
+  </ol>
+
+  <h3>BPETokenizer 封装</h3>
+<pre><code>from mingpt.bpe import BPETokenizer
+
+tokenizer = BPETokenizer()
+ids = tokenizer("Hello, world!")     # 返回 torch.LongTensor，形状 (1, seq_len)
+text = tokenizer.decode(ids.squeeze()) # 整数序列 → 文本</code></pre>
+
+  <div class="note">
+    <strong>空格处理：</strong>空格字符（字节 32）被映射为 <code>Ġ</code>（Unicode U+0120），
+    这是 GPT-2 分词器的标志性特征——前导空格被编码到 token 中。
+  </div>
+
+  <div class="notebook-cell">
+    <div class="cell-header">
+      <span class="cell-badge">代码示例</span>
+      <span class="cell-title">运行这段代码，观察文本如何变成数字</span>
+    </div>
+<pre><code>from mingpt.bpe import BPETokenizer
+tokenizer = BPETokenizer()
+text = "I like cats"
+ids = tokenizer(text)
+print("原始文本:", text)
+print("整数序列:", ids.tolist())
+print("解码回来:", tokenizer.decode(ids[0]))</code></pre>
+    <div class="cell-output">
+原始文本: I like cats
+整数序列: [[40, 588, 11875]]
+解码回来: I like cats
+    </div>
+    <div class="cell-explanation">
+      <strong>发生了什么？</strong><br>
+      输入 "I like cats" 被 BPE 分词器转换为三个整数 <code>[40, 588, 11875]</code>。<br>
+      这三个数字就是模型实际"看到"的内容。模型从不直接处理字母——只处理整数 ID。<br>
+      最后一行将 ID 解码回文本，证明转换是可逆的。<br>
+      <strong>自己试试：</strong>将 <code>text</code> 改为其他句子（如 "Hello world" 甚至中文），观察会产生多少个 token。
+    </div>
+  </div>
+
+  <h3>与 WordPiece、SentencePiece、Unigram 的对比</h3>
+  <p>BPE 不是唯一的分词方法。不同模型家族选择了不同的方案：</p>
+  <ul>
+    <li><strong>WordPiece (BERT)</strong>：与 BPE 类似，但基于语言模型似然增益合并，而非纯频率。</li>
+    <li><strong>SentencePiece (T5, LLaMA, Mistral)</strong>：直接在 Unicode 字符上操作，无需正则预分词。对多语言支持更自然。LLaMA 系列使用 SentencePiece + BPE 算法。</li>
+    <li><strong>Unigram LM</strong>：从大量词汇开始，逐步移除对语言模型贡献最小的 token（概率论视角）。</li>
+  </ul>
+  <p>这些方法在词汇表大小（通常 30k-128k）和罕见词处理上各有取舍。但核心思想相同：用有限数量的 token 覆盖自然语言的统计规律，同时保持可逆性。</p>
+
+  <h3>分词器如何影响模型能力（第一性原理）</h3>
+  <p>分词器是模型对世界的第一个"感知过滤器"：</p>
+  <ul>
+    <li>如果分词器将"人工 智能"拆成很多片段，模型需要更多层来学习这个概念。</li>
+    <li>对缩进和括号敏感的代码分词器使代码任务更容易学习。</li>
+    <li>多语言模型的分词器必须在各语言之间平衡 token 效率。</li>
+  </ul>
+  <p>现代模型越来越重视分词器训练（更多数据、更好算法），因为它直接影响模型的"感知粒度"和最终性能上限。</p>
+
+  <h3>调试 BPE：encode_and_show_work</h3>
+  <div class="notebook-cell">
+    <div class="cell-header">
+      <span class="cell-badge">代码示例</span>
+      <span class="cell-title">使用 BPE 的调试函数，查看预分词 → 字节映射 → 合并 → ID 的完整过程</span>
+    </div>
+<pre><code>from mingpt.bpe import get_encoder
+e = get_encoder()
+r = e.encode_and_show_work("Hello!! I'm Andrej.")
+print("预分词结果:", r['tokens'])
+for p in r['parts']:
+    print(p['token'], '→', p['token_merged'], '→', p['token_ix'])</code></pre>
+    <div class="cell-output">
+预分词: ['Hello', '!!', ' I', "'m", ' Andrej', '.']
+Hello → ['Hello'] → [15496]
+!! → ['!!'] → [3228]
+ I → ['ĠI'] → [314]
+'m → ["'m"] → [1101]
+ Andrej → ['ĠAndre', 'j'] → [10948, 73]
+. → ['.'] → [13]
+    </div>
+    <div class="cell-explanation">
+      注意 "Andrej" 被拆分为 ['ĠAndre', 'j'] —— 因为 "Andrej" 本身在训练语料中不够频繁，但 "Andre" + "j" 作为子词更常见。BPE 自动学习了这种"合理的分词"。
+    </div>
+  </div>
+</section>
+<!-- ===== TRAINING ===== -->
+<section id="training">
+  <h2>13. 训练的本质：从损失函数到参数更新</h2>
+
+  <p>在前面的章节中，我们从第一性原理理解了学习就是"预测 → 评分 → 调整"。本章将这一过程在 GPT 训练中的每个细节展开，并对比工业实践和其他优化方法。</p>
+
+  <h3>深入理解损失函数</h3>
+  <p>在语言建模中，我们几乎总是使用交叉熵损失（Cross Entropy Loss）。</p>
+  <p>从信息论的角度看，它衡量的是"模型预测的概率分布"与"真实的下一个词 one-hot 分布"之间的 KL 散度。</p>
+  <p>为什么不用 MSE（均方误差）？因为在分类任务中，MSE 对概率的惩罚不够"尖锐"。交叉熵在模型对正确答案信心不足时给出非常大的梯度，推动模型快速修正。</p>
+
+  <p>在代码中：</p>
+  <pre><code>loss = F.cross_entropy(logits.view(-1, vocab_size), targets.view(-1), ignore_index=-1)</code></pre>
+
+  <p><code>ignore_index=-1</code> 是一个非常实用的技巧。在 adder 项目中，它从损失中屏蔽了"问题部分"（输入数字），让模型只从"答案部分"学习。</p>
+
+  <h3>梯度下降与优化器</h3>
+  <p>最简单的梯度下降：</p>
+  <div class="formula">θ ← θ - η · ∇L</div>
+  <p>其中 η 是学习率。</p>
+
+  <p>在实践中，我们使用 AdamW（GPT 的标准）：</p>
+  <ul>
+    <li><strong>动量（Momentum）</strong>：使更新方向更稳定，在陡峭的损失表面上减少震荡。</li>
+    <li><strong>自适应学习率</strong>：对频繁更新的参数用小步，对稀有参数用大步。</li>
+    <li><strong>权重衰减（Weight Decay）</strong>：仅对权重矩阵应用 L2 正则化，不对偏置和 LayerNorm 参数应用（AdamW 与 Adam 的关键区别）。</li>
+  </ul>
+
+  <p>在 minGPT 的 <code>configure_optimizers</code> 中，参数被明确分为两组：</p>
+  <ul>
+    <li>decay 组：线性层权重</li>
+    <li>no_decay 组：偏置、LayerNorm、嵌入权重</li>
+  </ul>
+
+  <h3>优化器对比</h3>
+  <table>
+    <tr><th>优化器</th><th>特点</th><th>LLM 中的使用</th></tr>
+    <tr><td>SGD + Momentum</td><td>简单，理论性质好</td><td>大模型很少使用</td></tr>
+    <tr><td>Adam</td><td>自适应 + 动量</td><td>早期常用</td></tr>
+    <tr><td>AdamW</td><td>正确的权重衰减实现</td><td>当前 GPT 模型标准</td></tr>
+    <tr><td>Lion</td><td>2023 年提出，更省内存</td><td>部分新模型在实验</td></tr>
+    <tr><td>8-bit Adam / Adafactor</td><td>低精度优化，节省显存</td><td>超大模型（>100B）常用</td></tr>
+  </table>
+
+  <h3>梯度裁剪（Gradient Clipping）</h3>
+  <p>在 Transformer 训练中，某些层很容易出现梯度爆炸。minGPT 使用 <code>clip_grad_norm_(model.parameters(), 1.0)</code>，将全局梯度范数裁剪到 1.0。这是稳定大模型训练最简单有效的技巧之一。</p>
+
+  <h3>损失地形图：为什么学习率的选择至关重要</h3>
+  <p>想象损失函数是一座连绵起伏的山脉。模型的参数就是放在这座山上的一个球，训练的过程就是让球沿着山坡向下滚，寻找最低的谷底。</p>
+
+  <div class="diagram" style="text-align:center;padding:1rem">
+    <svg width="600" height="240" viewBox="0 0 600 240" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="11">
+      <defs>
+        <linearGradient id="sky2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1a1a2e"/><stop offset="100%" stop-color="#16213e"/></linearGradient>
+        <linearGradient id="curve2" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#e94560"/><stop offset="50%" stop-color="#f5a623"/><stop offset="100%" stop-color="#34d399"/></linearGradient>
+      </defs>
+      <rect width="600" height="240" fill="url(#sky2)" rx="8"/>
+      <path d="M 20 190 Q 80 180 150 170 Q 220 140 260 130 Q 300 100 340 105 Q 380 80 420 85 Q 460 50 500 55 Q 540 40 580 45" fill="none" stroke="url(#curve2)" stroke-width="2.5"/>
+      <path d="M 340 105 Q 350 95 370 98" fill="none" stroke="#34d399" stroke-width="1.5" stroke-dasharray="3"/>
+      <text x="355" y="85" fill="#34d399" font-size="10" text-anchor="middle">最佳谷底</text>
+      <circle cx="140" cy="173" r="8" fill="#e94560" opacity="0.9"/>
+      <line x1="132" y1="181" x2="120" y2="200" stroke="#e94560" stroke-width="1"/>
+      <text x="100" y="215" fill="#e94560" font-size="10" text-anchor="middle">LR 太小：几乎不动</text>
+      <circle cx="350" cy="103" r="8" fill="#34d399" opacity="0.9"/>
+      <line x1="360" y1="115" x2="375" y2="130" stroke="#34d399" stroke-width="1"/>
+      <text x="395" y="145" fill="#34d399" font-size="10" text-anchor="middle">合适 LR：顺利下山</text>
+      <circle cx="450" cy="58" r="8" fill="#f5a623" opacity="0.9"/>
+      <line x1="460" y1="50" x2="485" y2="30" stroke="#f5a623" stroke-width="1"/>
+      <text x="510" y="28" fill="#f5a623" font-size="10" text-anchor="middle">LR 太大：直接弹飞</text>
+      <text x="300" y="235" fill="#9aa3b8" font-size="10" text-anchor="middle">参数空间 →</text>
+      <line x1="270" y1="230" x2="330" y2="230" stroke="#9aa3b8" marker-end="url(#arrow2)" stroke-width="1"/>
+      <defs><marker id="arrow2" markerWidth="6" markerHeight="4" refX="6" refY="2" orient="auto"><polygon points="0 0,6 2,0 4" fill="#9aa3b8"/></marker></defs>
+    </svg>
+  </div>
+
+  <p>上图展示了损失地形的一个剖面。三种场景：</p>
+  <ul>
+    <li><strong>学习率太小（红色）</strong>：球几乎不动，卡在一个缓坡上。训练进度极慢，最终也无法到达谷底。实践中表现为 loss 下降极慢，最终停在一个较高的值。</li>
+    <li><strong>学习率合适（绿色）</strong>：球顺利滚入谷底。这就是调好学习率的表现——loss 稳步下降，最终到达一个不错的最小值。</li>
+    <li><strong>学习率太大（橙色）</strong>：球因为动量过大，直接弹出谷底。训练中表现为 loss 突然暴涨——这就是梯度裁剪要解决的问题：防止球在梯度异常大时跳出太远。</li>
+  </ul>
+  <p><strong>为什么需要 Warmup</strong>：在初始化时，模型参数是随机的，起点附近的损失地形极其陡峭且混乱。一大步走错就可能永久破坏训练稳定性。Warmup 让模型先用极小的步幅探路，找到方向后再全速下降。</p>
+
+  <h3>学习率调度</h3>
+  <p>现代 LLM 训练几乎总是使用 Warmup + Cosine Decay 或 WSD（Warmup-Stable-Decay）调度。</p>
+  <ul>
+    <li><strong>Warmup</strong>：在前几千步中，学习率从 0 线性增加到峰值，防止早期不稳定。</li>
+    <li><strong>Cosine Decay</strong>：学习率平滑衰减到一个很小的值。</li>
+    <li><strong>稳定阶段</strong>：对于非常大的模型，有一个学习率保持不变的阶段。</li>
+  </ul>
+
+  <h3>深入理解 AdamW 超参数：betas=(0.9, 0.95)</h3>
+  <p>AdamW 中的两个 beta 值控制着优化过程中完全不同的方面：</p>
+  <ul>
+    <li><strong>beta1=0.9（动量）</strong>：想象球滚下山坡。0.9 意味着"90% 保留之前的方向 + 10% 采纳新梯度"。beta1 越高（如 0.95），轨迹越平滑但转向越慢；越低（如 0.8），响应越快但来回抖动。0.9 是默认值，因为它平衡了平滑性和响应速度。</li>
+    <li><strong>beta2=0.95（自适应学习率）</strong>：它控制 Adam 回顾多远来估计每个参数的"典型梯度大小"。这是一个梯度平方的指数移动平均。beta2=0.95 意味着大约考虑最近 20 步的梯度统计。越高（如 0.999）估计越稳定，但在梯度统计变化时适应慢；越低（如 0.9）适应快但噪声大。</li>
+  </ul>
+  <p><strong>直觉速查表</strong>：beta1 控制方向的记忆（往哪走），beta2 控制步长的记忆（每步走多大）。如果训练剧烈震荡，增加 beta1；如果 loss 过早停滞，减小 beta2。</p>
+  <div class="callout important">
+    <strong>为什么用 AdamW 而不是 Adam？</strong> Adam 有一个 bug：权重衰减被应用在<em>自适应学习率内部</em>，导致梯度大的参数被正则化得更狠。AdamW 将权重衰减<em>解耦</em>，直接应用在权重上。这个小小的修正显著提升了泛化能力，尤其是对于大语言模型。
+  </div>
+
+  <h3>数据是训练的另一半（第一性原理）</h3>
+  <p>许多人只关注模型架构和优化器，但数据质量往往比模型大小更重要。从第一性原理看，模型只是一个"函数近似器"——它能拟合什么完全取决于你给它看什么数据。</p>
+  <p>在 Scaling Laws 时代，我们学到：</p>
+  <ul>
+    <li>高质量、干净、多样化的数据让同样大小的模型表现更好（Chinchilla 论文的核心发现）。</li>
+    <li>数据重复会损害性能，甚至导致"记忆化"而非"泛化"。</li>
+    <li>数据混合比例（代码、网页、书籍、对话、数学）需要仔细调整。不同的比例会产生截然不同的能力画像。</li>
+  </ul>
+
+  <p><strong>具体例子：相同架构，不同数据</strong></p>
+  <p>试试用<em>完全相同</em>的 gpt-nano 模型在两个不同数据集上训练：</p>
+  <ul>
+    <li><strong>数据集 A</strong>：100MB 清洗后的维基百科。模型会学到良好的语法、事实知识和连贯的段落结构。但它不会写代码、做数学或对话。</li>
+    <li><strong>数据集 B</strong>：100MB GitHub Python 代码。同样的模型会学到缩进模式、函数调用语法和变量命名规范。但如果让它写文章，它会生成胡言乱语。</li>
+    <li><strong>数据集 C（混合）</strong>：50MB 维基百科 + 50MB GitHub。模型会"两者都懂一点，但不精通"——除非总数据量大到足以让模型同时学习两种分布。这就是为什么 Chinchilla 的发现至关重要：每个领域都需要足够的 token。</li>
+  </ul>
+
+  <p><strong>给 minGPT 实验者的实用建议</strong>：如果你的 minGPT 模型学不会，首先要检查的<em>不是</em>架构——而是你的数据。(x, y) 配对是否正确？词汇表是否覆盖了文本？数据是否足够多样？一个完美的 Transformer 配上糟糕的数据，只会生成完美的垃圾。</p>
+
+  <div class="callout tip">
+    <strong>实验建议</strong>：用同一个 minGPT 模型分别训练莎士比亚、Python 代码和随机数。架构完全不变，但模型会学到完全不同的模式。这是内化"数据是训练的另一半"的最直接方式。
+  </div>
+
+  <h3>训练稳定性：小模型 vs 大模型</h3>
+  <p>训练一个几百万参数的 minGPT 和一个 70B 的模型在工程上是完全不同的世界。</p>
+  <ul>
+    <li>小模型（minGPT 级别）几乎不用担心 loss 尖峰。随机初始化 + 正常 AdamW 就能工作。</li>
+    <li>大模型需要一系列"黑魔法"技巧：精确的初始化缩放（GPT-2 的残差投影用 1/sqrt(2N)）、QKV 偏置设为 0、LayerNorm epsilon 调优、梯度裁剪到 1.0、loss 缩放、BF16 主权重保护、选择性权重衰减等。</li>
+    <li>当 loss 尖峰发生时，你通常需要回滚到之前的检查点并调整超参数，甚至重新设计初始化。</li>
+  </ul>
+  <p>minGPT 故意省略了这些"细节"，因为它的目标是教育。在小实验中看不到的陷阱，会在真实的大模型训练中让你吃尽苦头。</p>
+
+  <h3>默认训练配置</h3>
+  <table>
+    <tr><th>参数</th><th>默认值</th><th>说明</th></tr>
+    <tr><td>device</td><td>'auto'</td><td>自动选择 CUDA 或 CPU</td></tr>
+    <tr><td>batch_size</td><td>64</td><td>批大小</td></tr>
+    <tr><td>learning_rate</td><td>3e-4</td><td>AdamW 学习率</td></tr>
+    <tr><td>betas</td><td>(0.9, 0.95)</td><td>Adam 动量参数</td></tr>
+    <tr><td>weight_decay</td><td>0.1</td><td>权重衰减（仅线性层）</td></tr>
+    <tr><td>grad_norm_clip</td><td>1.0</td><td>梯度裁剪阈值</td></tr>
+    <tr><td>max_iters</td><td>None</td><td>最大迭代次数（None=无限）</td></tr>
+    <tr><td>num_workers</td><td>4</td><td>DataLoader 工作进程数</td></tr>
+  </table>
+
+  <h3>训练循环（与第一性原理的对应）</h3>
+  <p>回忆我们的第一性原理——每一行代码对应一个步骤：</p>
+  <pre><code>while True:
+    x, y = next(batch)                    # 获取一个批次
+    logits, loss = model(x, y)            # 1. 前向：预测 + 计算损失
+    model.zero_grad(set_to_none=True)
+    loss.backward()                       # 2. 反向：计算梯度
+    clip_grad_norm_(params, max_norm)     # （可选）防止梯度爆炸
+    optimizer.step()                      # 3. 更新：真正地转动旋钮
+    trigger_callbacks('on_batch_end')     # 回调（日志/评估/保存）
+    if iter_num >= max_iters: break</code></pre>
+
+  <p>循环的每次执行都在略微调整模型参数以降低误差，基于当前批次计算。这是"训练"最本质的动作。</p>
+
+  <h3>回调机制</h3>
+  <pre><code>def on_batch_end(trainer):
+    if trainer.iter_num % 100 == 0:
+        print(f"loss: {trainer.loss.item():.4f}")
+
+trainer.set_callback('on_batch_end', on_batch_end)</code></pre>
+  <p>回调可以访问 <code>trainer.loss</code>、<code>trainer.iter_num</code>、<code>trainer.iter_dt</code>（每步耗时）等。</p>
+</section>
+<!-- ===== GENERATION ===== -->
+<section id="generation">
+  <h2>14. 自回归生成</h2>
+  <p><code>model.generate()</code> 实现了自回归生成：一次预测一个 token，追加到序列中，重复直到达到所需长度。</p>
+
+  <p>生成流程：</p>
+  <ol>
+    <li>prompt：初始输入序列。</li>
+    <li>forward：模型前向传播，获取最后一个位置的 logits。</li>
+    <li>logits/T：应用温度缩放（控制随机性）。</li>
+    <li>sample：基于温度和 top-k 采样下一个 token（或贪心 argmax）。</li>
+    <li>append：将新 token 拼接到序列，重复直到达到 max_new_tokens。</li>
+  </ol>
+  <p>与 BERT（一次性双向理解）不同，GPT 的生成必须是严格自回归的，因此因果掩码不可或缺。生产级 Transformer 通常会维护 KV cache 来避免重复计算历史 token；minGPT 的教学实现更简单，不做 KV cache，而是在每一步重新前向计算当前上下文。</p>
+
+  <div class="diagram">
+    <svg width="650" height="120" viewBox="0 0 650 120" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="12">
+      <defs><marker id="a5" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#6c9eff"/></marker></defs>
+      <rect x="10" y="40" width="90" height="35" rx="5" fill="#2f364a" stroke="#e8eaf0"/><text x="55" y="62" text-anchor="middle" fill="#e8eaf0">prompt</text>
+      <rect x="130" y="40" width="90" height="35" rx="5" fill="#1e3a5f" stroke="#6c9eff"/><text x="175" y="62" text-anchor="middle" fill="#6c9eff">forward</text>
+      <rect x="250" y="40" width="90" height="35" rx="5" fill="#343c52" stroke="#a78bfa"/><text x="295" y="62" text-anchor="middle" fill="#a78bfa">logits/T</text>
+      <rect x="370" y="40" width="90" height="35" rx="5" fill="#14352a" stroke="#34d399"/><text x="415" y="62" text-anchor="middle" fill="#34d399">sample</text>
+      <rect x="490" y="40" width="90" height="35" rx="5" fill="#2a1f14" stroke="#fb923c"/><text x="535" y="62" text-anchor="middle" fill="#fb923c">append</text>
+      <rect x="570" y="40" width="70" height="35" rx="5" fill="#2f364a" stroke="#9aa3b8"/><text x="605" y="55" text-anchor="middle" fill="#9aa3b8" font-size="10">repeat</text><text x="605" y="68" text-anchor="middle" fill="#9aa3b8" font-size="10">max_new</text>
+      <line x1="100" y1="57" x2="130" y2="57" stroke="#6c9eff" marker-end="url(#a5)"/>
+      <line x1="220" y1="57" x2="250" y2="57" stroke="#a78bfa" marker-end="url(#a5)"/>
+      <line x1="340" y1="57" x2="370" y2="57" stroke="#34d399" marker-end="url(#a5)"/>
+      <line x1="460" y1="57" x2="490" y2="57" stroke="#fb923c" marker-end="url(#a5)"/>
+      <path d="M 535 75 Q 535 100 175 100 Q 55 100 55 75" fill="none" stroke="#9aa3b8" stroke-dasharray="4" marker-end="url(#a5)"/>
+    </svg>
+  </div>
+
+  <h3>生成参数详解</h3>
+  <table>
+    <tr><th>参数</th><th>默认值</th><th>说明</th></tr>
+    <tr><td>max_new_tokens</td><td>—</td><td>要生成的新 token 数量</td></tr>
+    <tr><td>temperature</td><td>1.0</td><td>控制随机性（见 Softmax 章节）</td></tr>
+    <tr><td>do_sample</td><td>False</td><td>False=贪心 (argmax)，True=概率采样</td></tr>
+    <tr><td>top_k</td><td>None</td><td>仅从概率最高的 top k 个 token 中采样</td></tr>
+  </table>
+
+  <pre><code>model.eval()
+with torch.no_grad():
+    # 确定性生成
+    out = model.generate(prompt, max_new_tokens=100, do_sample=False)
+
+    # 多样性采样
+    out = model.generate(prompt, max_new_tokens=100,
+                         temperature=0.8, do_sample=True, top_k=40)</code></pre>
+
+  <div class="warning">
+    生成前务必调用 <code>model.eval()</code> 以禁用 Dropout。
+    超过 <code>block_size</code> 的序列会自动截断为最后 block_size 个 token。
+  </div>
+
+  <h3>交互式采样工具（Temperature & Top-k）</h3>
+  <p>下面的交互工具让你体验温度和 top-k 如何影响同一个 logits 分布。点击"Sample"从调整后的分布中采样。</p>
+  <div id="sampler-toy" class="toy-container">
+    <div class="sampler">
+      <div>
+        <label>temperature <span id="temp-val">1.0</span></label>
+        <input type="range" id="temp" min="0.1" max="3" step="0.1" value="1.0">
+        <label>top-k <span id="topk-val">5</span></label>
+        <input type="range" id="topk" min="1" max="5" step="1" value="5">
+        <button id="sample-btn" style="margin-top:8px">随机采样</button>
+        <div id="sample-result" style="margin-top:8px;font-size:0.9rem"></div>
+      </div>
+      <div>
+        <div style="font-size:0.8rem;color:#9aa3b8;margin-bottom:4px">原始概率 (temp=1, no top-k)</div>
+        <div id="bars-before" class="bars"></div>
+        <div style="font-size:0.8rem;color:#9aa3b8;margin:8px 0 4px">调整温度 + top-k 后</div>
+        <div id="bars-after" class="bars"></div>
+      </div>
+    </div>
+  </div>
+  <p class="note">temperature &lt; 1 使分布更尖锐（模型更"自信"）；top-k=3 表示"仅从这 3 个词中选择"，其余词概率归零。</p>
+</section>
+<section id="finetuning">
+  <h2>15. 微调：让预训练模型适配你的任务</h2>
+
+  <p>到目前为止，你已经理解了 GPT 是如何从头开始训练的。但在实际中，几乎没有人会从头训练一个基础模型。相反，他们会拿一个已有的预训练模型，进行<strong>微调（Fine-Tuning）</strong>——在更小、更有针对性的数据集上继续训练，让模型适应特定任务或领域。</p>
+
+  <h3>什么是微调？</h3>
+  <p>微调就是拿一个已经"学会说话"的模型（在数十亿 token 上预训练过），教它"在你特定的场景下该说什么"。预训练模型已经学会了语法、世界知识、推理模式和通用语言理解。微调将这些知识塑造成特定的目标。</p>
+
+  <p>从第一性原理来看：预训练给了模型一个好的初始化——它已经在损失地形中位于一个对应"通用语言"的谷底。微调将这个模型从通用谷底移动到对应你领域的具体谷底。因为起点很好，你只需要很少的数据和计算量。</p>
+
+  <div class="key-takeaway">
+    <strong>核心直觉</strong>：预训练 = 学会说任何语言。微调 = 学会说你特定的方言。模型不会"忘记"语言如何运作，只是调整了优先级。
+  </div>
+
+  <h3>全参数微调（Full Fine-Tuning）</h3>
+  <p>更新模型的所有参数。这提供了最大的灵活性——每一层都可以适应新领域。但成本很高：</p>
+  <ul>
+    <li>一个 7B 模型在 FP32 下仅参数就需要 ~56GB 显存（不含优化器状态）。</li>
+    <li>使用 AdamW 优化器，还需要 ~112GB 用于优化器状态（每个参数 2 个动量和 2 个方差）。</li>
+    <li>再加上激活值、梯度和批数据。一个 7B 模型轻松超过 200GB。</li>
+  </ul>
+  <p>全参数微调还有<strong>灾难性遗忘</strong>的风险——如果在狭窄领域上过度训练，模型可能会丢失通用能力。</p>
+
+  <h3>LoRA（低秩适配）</h3>
+  <p>LoRA 是目前最流行的参数高效微调方法。它不更新完整的权重矩阵 W（可能是 4096×4096），而是添加一条小的"旁路"：</p>
+  <div class="formula">W' = W + BA，其中 B ∈ ℝ^{d×r}, A ∈ ℝ^{r×k}, r ≪ min(d,k)</div>
+  <p>原始的 W 被冻结（不计算梯度）。只有很小的矩阵 A 和 B 被训练。对于一个 4096×4096 层，rank=8 时 LoRA 只训练 65,536 个参数，而不是 16,777,216 个——减少了 256 倍。</p>
+  <p>训练时 W 冻结、A/B 更新。推理时可以把它们合并：W_merged = W + BA（零额外成本）。或者分开保存以便快速切换任务。</p>
+
+  <p><strong>LoRA 最佳实践</strong>：</p>
+  <ul>
+    <li><strong>秩（Rank）</strong>：大多数任务用 8-64。更高秩 = 更大容量但收益递减。r=16 是个好的默认值。</li>
+    <li><strong>目标模块</strong>：对注意力投影矩阵（Q, K, V, O）应用 LoRA 效果最好。领域特定任务可加上 MLP 层。</li>
+    <li><strong>Alpha 缩放</strong>：LoRA 更新按 alpha/r 缩放。alpha=16, r=8 时缩放 2 倍。一般从 alpha = 2×rank 开始。</li>
+  </ul>
+
+  <h3>QLoRA：LoRA + 量化</h3>
+  <p>QLoRA 将效率推向更高——将冻结的基础模型量化到 4-bit（NF4 格式），同时将 LoRA 适配器保持在 FP16。这使得在单个 48GB GPU 上微调 65B 模型成为可能——之前即使是 7B 模型的全参数微调都做不到。</p>
+  <ul>
+    <li><strong>NF4（NormalFloat4）</strong>：一种针对正态分布权重优化的 4-bit 数据类型。比标准 INT4 更适合模型权重。</li>
+    <li><strong>双重量化</strong>：对量化常数本身也进行量化，进一步节约内存。</li>
+    <li><strong>分页优化器</strong>：当 GPU 内存满时使用 CPU 内存存储优化器状态，按需交换页面。</li>
+  </ul>
+  <p>QLoRA 相比全精度 16-bit 微调只有 ~1% 的质量损失，但内存减少了 4-8 倍。这使 LLM 微调变得平民化——任何人只要有消费级 GPU 就能微调最先进的模型。</p>
+
+  <h3>微调方法对比</h3>
+  <table>
+    <tr><th>方法</th><th>可训练参数</th><th>7B 模型内存</th><th>质量</th><th>最适用于</th></tr>
+    <tr><td>全参数微调</td><td>100%</td><td>~200GB</td><td>最佳</td><td>最高质量要求，预算充足</td></tr>
+    <tr><td>LoRA (r=16)</td><td>~0.1%</td><td>~24GB</td><td>≈99%</td><td>最实用：质量好，成本低</td></tr>
+    <tr><td>QLoRA (4-bit + r=16)</td><td>~0.1%</td><td>~10GB</td><td>≈98%</td><td>消费级 GPU，快速迭代</td></tr>
+    <tr><td>Adapter</td><td>~3-5%</td><td>~30GB</td><td>≈99.5%</td><td>LoRA 容量不够时</td></tr>
+  </table>
+
+  <h3>微调数据最佳实践</h3>
+  <p>微调质量最重要的因素是你的数据。架构远远没那么重要：</p>
+  <ul>
+    <li><strong>质量重于数量</strong>：1000 个精心挑选的例子胜过 100,000 个嘈杂的网络数据。每个例子都应展示你想要的确切行为。</li>
+    <li><strong>多样化覆盖</strong>：覆盖模型会遇到的所有边缘情况。如果模型会看到 10 种用户请求，确保每种都有好的示例。</li>
+    <li><strong>输入输出对齐</strong>：(x, y) 对必须完全一致。如果你在 (问题, 答案) 对上微调，确保所有例子的答案格式相同。</li>
+    <li><strong>混入通用数据</strong>：为防止灾难性遗忘，在领域数据中混入 5-20% 的通用指令数据（如 ShareGPT、OpenAssistant）。</li>
+  </ul>
+
+  <div class="callout important">
+    <strong>什么时候不该微调</strong>：如果你的需求是"回答关于公司文档的问题"，RAG（检索+提示词）通常比微调更好。微调教模型的是<em>如何</em>回答，而不是<em>知道什么</em>。当你需要模型学习新的<em>模式</em>（格式、语气、推理风格）时用微调，而不是需要它知道新的事实时。
+  </div>
+
+  <h3>与 minGPT 的联系</h3>
+  <p>你在 minGPT 中学到的训练循环直接适用于微调：</p>
+  <ul>
+    <li>同样的 <code>model(x, y) → loss → loss.backward() → optimizer.step()</code> 循环。</li>
+    <li>同样的交叉熵损失，只是在不同的数据集上。</li>
+    <li>同样的梯度裁剪、学习率调度和回调机制。</li>
+    <li>关键区别：你从预训练权重开始（初始 loss 低得多），使用小得多的学习率（通常 1e-5 到 5e-5，而不是预训练的 3e-4）。</li>
+  </ul>
+  <p>如果你能从头训练一个 minGPT 模型，你已经理解了微调 90% 的内容。剩下的只是基础设施——LoRA 封装、量化和数据格式化。</p>
+</section>
+
+
+<!-- ===== IMPLEMENTATION ===== -->
+<section id="implementation">
+  <div class="chapter-header">
+    <h2>16. minGPT 实现细节</h2>
+  </div>
+
+  <p>minGPT 有意保持最小化，但真实世界的生产代码必须处理许多额外问题。下面我们深入分析每一个简化：minGPT 中是什么样的，为什么工业界必须加上它，以及为什么 Karpathy 故意为了教学而省略它。</p>
+
+  <div class="card" style="margin: 1.2rem 0; border-left: 4px solid var(--accent2);">
+    <h4>1. 没有 FlashAttention / memory efficient attention</h4>
+    <p><strong>这是什么？</strong><br>
+    标准注意力在计算 Q@K^T 时会显式生成一个 T×T 的分数矩阵（对于批次和头，大小为 B×nh×T×T）。在 T=4096 时这个矩阵已经很大了；在 T=32k 时直接爆炸。FlashAttention 使用分块计算、融合 softmax 到 SRAM 中，避免将完整注意力矩阵写入 HBM，实现了"IO 感知"的计算。</p>
+    <p><strong>minGPT 中（model.py, CausalSelfAttention.forward）：</strong>
+    <pre><code>q, k, v = self.c_attn(x).split(...)
+    att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(...))
+    att = att.masked_fill(self.bias[:,:,:T,:T] == 0, float('-inf'))
+    att = F.softmax(att, dim=-1)
+    y = att @ v</code></pre>
+    每一步都生成中间 T×T 张量。</p>
+    <p><strong>生产版本：</strong> 序列长度轻松达到 32k~128k+，在相同批大小下内存减少 3-10 倍。在长上下文上训练 70B 模型变得可行。</p>
+    <p><strong>为什么省略？</strong> 一旦使用 Flash，你就再也看不到"注意力分数是如何计算的"——核心过程变成了一个黑盒 kernel。教学目标是让你清晰地看到 mask、scale、softmax、加权求和的过程。</p>
+  </div>
+
+  <div class="card" style="margin: 1.2rem 0; border-left: 4px solid var(--accent2);">
+    <h4>2. 没有混合精度训练（BF16 + FP32 主权重）</h4>
+    <p><strong>minGPT 中：</strong> 整个模型默认是 FP32。没有 autocast、GradScaler 或主权重副本。</p>
+    <p><strong>生产影响：</strong> 加速 1.5-3 倍，内存减半（BF16 使用 2 字节而不是 4 字节）。没有它，训练 10B+ 模型不仅太慢，而且 A100 tensor core 也被浪费了。</p>
+    <p><strong>为什么省略？</strong> 混合精度涉及 amp、GradScaler、all-reduce 精度策略——对于理解"下一个词预测 + 梯度下降"来说，纯粹是工程噪声。</p>
+  </div>
+
+  <div class="card" style="margin: 1.2rem 0; border-left: 4px solid var(--accent2);">
+    <h4>3. 没有梯度检查点（Gradient Checkpointing）</h4>
+    <p><strong>minGPT 中：</strong> 没有。Trainer 直接调用 <code>loss.backward()</code>，PyTorch 保留所有激活值。</p>
+    <p><strong>生产影响：</strong> 在不增加 GPU 的情况下使批大小或序列长度增加 2-4 倍。对于长上下文训练至关重要。</p>
+    <p><strong>为什么省略？</strong> 重计算使训练代码和调试变得复杂。对于理解"loss.backward() 做了什么"，它是一个干扰项。</p>
+  </div>
+
+  <div class="card" style="margin: 1.2rem 0; border-left: 4px solid var(--accent2);">
+    <h4>4. 没有 ZeRO / FSDP 分布式策略</h4>
+    <p><strong>minGPT 中：</strong> 只有 <code>model.to(device)</code> 和一个优化器。没有"多 GPU"的概念。</p>
+    <p><strong>生产影响：</strong> 没有这些，GPT-3 175B、LLaMA 70B 永远不会存在。</p>
+    <p><strong>为什么省略？</strong> 分布式代码极其复杂（通信拓扑、梯度桶、参数重排、容错）。教学目标是首先理解"单个 GPU 上的单个 Block 做了什么"。</p>
+  </div>
+
+  <div class="card" style="margin: 1.2rem 0; border-left: 4px solid var(--accent2);">
+    <h4>5. 没有 RoPE（旋转位置编码）</h4>
+    <p><strong>minGPT 中：</strong> 使用简单的可学习位置嵌入（wpe），最大长度固定为 block_size。</p>
+    <p><strong>生产影响：</strong> RoPE 允许外推（extrapolation）到更长的序列，并且相对位置编码比绝对位置更符合注意力的需要。所有现代模型（LLaMA、Mistral、Gemma）都使用 RoPE 或其变体。</p>
+    <p><strong>为什么省略？</strong> 可学习嵌入是最简单的位置编码方式——"添加一个位置向量"比 RoPE 的旋转矩阵更容易理解。</p>
+  </div>
+
+  <div class="card" style="margin: 1.2rem 0; border-left: 4px solid var(--accent2);">
+    <h4>6. 没有 GQA（分组查询注意力）</h4>
+    <p><strong>minGPT 中：</strong> 标准多头注意力，每个头有自己的 K 和 V。</p>
+    <p><strong>生产影响：</strong> GQA 在不牺牲质量的情况下显著减少了 KV 缓存（约 2-4 倍）。对于长序列生成和部署到边缘设备至关重要。</p>
+    <p><strong>为什么省略？</strong> MHA 更简单、更经典。理解了 MHA 之后，GQA 只是"多个 Q 共享 K/V"的一个小变化。</p>
+  </div>
+
+  <p><strong>本节的核心教训</strong>：minGPT 不是生产的代码。它是<em>教学</em>代码。理解每个省略背后的"为什么"比知道如何添加它们更有价值——因为它揭示了 Transformer 的核心机制与工程优化之间的界限。</p>
+</section>
+<!-- ===== COMPARISONS ===== -->
+<section id="comparisons">
+  <h2>17. 模型大小配置与架构对比</h2>
+  <p>使用 <code>model_type</code> 选择预定义架构，或手动指定 <code>n_layer</code>、<code>n_head</code>、<code>n_embd</code>。</p>
+
+  <table>
+    <tr><th>model_type</th><th>n_layer</th><th>n_head</th><th>n_embd</th><th>主体参数量近似</th><th>用途</th></tr>
+    <tr><td>gpt-nano</td><td>3</td><td>3</td><td>48</td><td>~0.1M</td><td>快速实验 / 学习</td></tr>
+    <tr><td>gpt-micro</td><td>4</td><td>4</td><td>128</td><td>~1M</td><td>小型任务</td></tr>
+    <tr><td>gpt-mini</td><td>6</td><td>6</td><td>192</td><td>~8M</td><td>chargpt 默认</td></tr>
+    <tr><td>gpt2</td><td>12</td><td>12</td><td>768</td><td>~124M</td><td>标准 GPT-2</td></tr>
+    <tr><td>gpt2-medium</td><td>24</td><td>16</td><td>1024</td><td>~350M</td><td>—</td></tr>
+    <tr><td>gpt2-large</td><td>36</td><td>20</td><td>1280</td><td>~774M</td><td>—</td></tr>
+    <tr><td>gpt2-xl</td><td>48</td><td>25</td><td>1600</td><td>~1.5B</td><td>—</td></tr>
+  </table>
+
+  <div class="note">
+    表中参数量估算：≈ 12 · n_layer · n_embd²（主要是 Transformer Block，不含词嵌入和 lm_head）。
+    真实总参数还取决于 vocab_size 和 block_size；例如 gpt-nano 如果使用 GPT-2 词表 vocab_size=50257，总参数会接近 500 万。
+  </div>
+</section>
+<!-- ===== SCALING LAWS ===== -->
+<section id="scaling">
+  <div class="chapter-header">
+    <h2>18. Scaling Laws 与涌现能力</h2>
+  </div>
+
+  <p>2020 年，OpenAI 发表了开创性论文"Scaling Laws for Neural Language Models"。通过大量实验，它展示了一个令人惊讶的事实：</p>
+
+  <p><strong>语言模型的性能可以用三个变量之间的幂律关系来预测：模型大小、数据集大小和计算预算。</strong></p>
+
+  <h3>Scaling Laws 的核心发现</h3>
+  <p>在一定范围内：</p>
+  <ul>
+    <li>增加模型参数（N）、数据（D）或计算量（C）都会以可预测的幂律方式降低损失。</li>
+    <li>N 和 D 之间存在一个最优比例（大致按比例共同增长）。</li>
+    <li>在固定计算预算下，最好在模型大小和数据之间均匀分配计算量，而不是只堆模型或只堆数据。</li>
+  </ul>
+
+  <p>这直接指导了 GPT-3、Chinchilla、LLaMA 等模型的训练配置。</p>
+
+  <p><strong>图 12.1：Scaling Laws — 损失随计算量可预测地下降</strong></p>
+  <p>下图展示了经典的幂律关系：随着计算预算增加，模型损失沿一条平滑、可预测的曲线下降。Chinchilla 的关键发现是：在相同计算预算下，将资源在模型大小和数据之间最优分配，比过度分配给模型大小（如 GPT-3 的做法）能产生更低的损失。</p>
+  <div class="diagram" style="background:#252c3d; padding:14px; border-radius:6px;">
+    <svg width="660" height="340" viewBox="0 0 660 340" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="11">
+      <defs><marker id="sl-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#fb923c"/></marker></defs>
+      <line x1="80" y1="30" x2="80" y2="300" stroke="#3c4459" stroke-width="1"/>
+      <line x1="80" y1="300" x2="600" y2="300" stroke="#3c4459" stroke-width="1"/>
+      <text x="30" y="165" text-anchor="middle" fill="#9aa3b8" transform="rotate(-90,30,165)">损失（越低越好）→</text>
+      <text x="340" y="335" text-anchor="middle" fill="#9aa3b8">计算量（对数刻度）→</text>
+      <path d="M100,290 Q200,240 300,180 Q400,130 500,90 Q550,70 580,55" stroke="#6c9eff" stroke-width="2.5" fill="none" stroke-dasharray="6,3"/>
+      <text x="580" y="50" fill="#6c9eff" font-size="10">Kaplan (2020): N &gt; D</text>
+      <path d="M100,285 Q200,220 300,155 Q400,100 500,60 Q550,42 580,30" stroke="#34d399" stroke-width="3" fill="none"/>
+      <text x="580" y="25" fill="#34d399" font-size="10">Chinchilla (2022): more data per parameter</text>
+      <circle cx="200" cy="240" r="6" fill="#6c9eff" stroke="#fff" stroke-width="1"/>
+      <text x="200" y="230" text-anchor="middle" fill="#6c9eff" font-size="9">GPT-1</text>
+      <circle cx="320" cy="180" r="6" fill="#6c9eff" stroke="#fff" stroke-width="1"/>
+      <text x="320" y="170" text-anchor="middle" fill="#6c9eff" font-size="9">GPT-2</text>
+      <circle cx="450" cy="130" r="7" fill="#f87171" stroke="#fff" stroke-width="1"/>
+      <text x="450" y="120" text-anchor="middle" fill="#f87171" font-size="9">GPT-3</text>
+      <circle cx="480" cy="65" r="7" fill="#34d399" stroke="#fff" stroke-width="1"/>
+      <text x="480" y="55" text-anchor="middle" fill="#34d399" font-size="9">Chinchilla</text>
+      <line x1="445" y1="130" x2="475" y2="68" stroke="#fb923c" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#sl-arrow)"/>
+      <text x="430" y="95" fill="#fb923c" font-size="9">相同计算量，更低损失</text>
+    </svg>
+  </div>
+
+  <h3>涌现能力</h3>
+  <p>当模型规模超过某个阈值时，全新的能力会突然出现——就像物理学中的"相变"：</p>
+  <ul>
+    <li><strong>算术</strong>：在一些评测中，多位数加法、链式推理等能力会在更大模型上突然明显增强；这并不表示小模型完全不能学算术，而是泛化和少样本能力差很多。</li>
+    <li><strong>上下文学习（few-shot）</strong>：超过一定规模后，在提示中提供示例能显著提升性能。小模型从上下文示例中的收益微乎其微。</li>
+    <li><strong>指令遵循</strong>：遵循复杂指令的能力在约 10-100B 参数之间涌现。</li>
+    <li><strong>多语言能力</strong>：跨语言迁移只在超过一定规模后才变得有效。</li>
+    <li><strong>代码生成</strong>：从编写简单脚本到实现完整算法。</li>
+  </ul>
+
+  <p>这些能力不是逐步提升的——它们突然出现。这就是为什么简单增加规模就能产生质的飞跃，甚至令构建这些模型的研究人员也感到惊讶。</p>
+
+  <div class="note">
+    <strong>关于涌现的争论：</strong>一些研究者认为"涌现"部分是不连续评估指标的产物（例如准确率从 0% 跳到 50% 看起来像相变，但底层能力可能在更细粒度的指标上持续提升）。无论如何，实际效果是真实的：足够大的模型能做更小的模型根本做不到的事情。
+  </div>
+
+  <h3>Chinchilla Scaling Laws：计算最优的革命</h3>
+  <p>原始的 Kaplan Scaling Laws (2020) 认为，要最小化损失，最佳策略偏向于更快地扩展模型参数。这导致了像 GPT-3 (175B 参数, 300B token) 这样的模型：参数很大，但相对于后来的标准，训练 token 数偏少。</p>
+
+  <p>但 DeepMind 的 Chinchilla 论文 (2022) 更系统地重新审视了这个问题。他们训练了 400 个不同大小和数据量的模型，得出了一个截然不同的结论：</p>
+  <ul>
+    <li><strong>参数和数据要一起扩展</strong>：不是“参数数等于 token 数”，而是在固定计算预算下，参数量 N 和训练 token 数 D 都要随预算增长。常见的 Chinchilla 经验解读是：训练 token 数应远多于参数量，约几十个 token 对应一个参数的量级。</li>
+    <li><strong>之前的模型训练不足</strong>：GPT-3 (175B, 300B token) 约为 1.7 tokens/parameter；Chinchilla (70B, 1.4T token) 约为 20 tokens/parameter。后者参数更少，但每个参数看过的数据更多。</li>
+    <li><strong>相同计算量 → 更好的模型</strong>：Chinchilla 使用了与 GPT-3 接近的 FLOPs，但实现了显著更低的困惑度，说明早期大模型常常“模型太大、数据太少”。</li>
+  </ul>
+
+  <p>这一发现彻底改变了训练策略。后续许多模型不再只追求更大的参数量，而是更重视训练 token 数、数据质量和去重清洗；也就是说，宁愿让一个相对小的模型“看得更充分”，也不盲目堆参数。</p>
+
+  <h3>Scaling 的天花板</h3>
+  <p>Scaling Laws 只在特定范围内成立。持续扩展面临：</p>
+  <ul>
+    <li>高质量数据的边际成本上升：公开互联网文本会重复、污染或质量参差不齐，继续扩展需要更强的数据筛选、合成数据和反馈数据。</li>
+    <li>计算成本线性增长但收益可能递减。</li>
+    <li>对齐难度增加（更大的模型更容易产生有害输出）。</li>
+  </ul>
+  <p>minGPT 告诉我们，即使在极小的规模下，Transformer + 下一个 token 预测也能学习简单的序列模式。未来很可能需要"Scaling + 更好的算法/数据/架构"，而非单纯的扩展。</p>
+</section>
+<!-- ===== POSITION ENCODING ===== -->
+<section id="position">
+  <div class="chapter-header">
+    <h2>19. 位置编码与长上下文技术</h2>
+  </div>
+
+  <h3>为什么 Transformer 需要位置编码？</h3>
+  <p>自注意力是置换不变的（permutation invariant）。没有位置信息，"I like cats"和"cats like I"对模型来说是一样的。</p>
+
+  <p>原始 Transformer 使用正弦位置编码（固定）。GPT 使用可学习的位置嵌入。</p>
+
+  <h3>从绝对位置到相对位置</h3>
+  <ul>
+    <li><strong>RoPE（旋转位置嵌入）</strong>：LLaMA、PaLM 等模型中常用的方案。通过旋转将相对位置信息编码到 Q 和 K 的点积中。</li>
+    <li><strong>ALiBi</strong>：向注意力分数添加基于线性距离的偏置，允许在比推理更短的序列上训练。</li>
+    <li><strong>YaRN, LongRoPE</strong>：RoPE 的插值/外推技术，用于 128k+ 甚至 1M 上下文。</li>
+  </ul>
+
+  <h3>RoPE 深入解析：数学与代码</h3>
+  <p>RoPE 通过在 2D 子空间中旋转来变换 query 和 key 向量。对于位置 p 和维度对 (2k, 2k+1)：</p>
+  <div class="formula">
+    R(p) · q = [q₂ₖ·cos(pθₖ) − q₂ₖ₊₁·sin(pθₖ), q₂ₖ·sin(pθₖ) + q₂ₖ₊₁·cos(pθₖ)]<br>
+    其中 θₖ = 10000^(−2k/d)
+  </div>
+  <p>关键性质：对 Q 和 K 应用 RoPE 后，它们的点积<strong>只依赖于相对位置</strong> (m − n)，而非绝对位置：</p>
+  <div class="formula">
+    (R(m)·q) · (R(n)·k) = q · R(n−m) · k
+  </div>
+  <p>这种相对位置编码比固定长度的可学习位置表更适合长上下文扩展；但真正稳定地外推到更长序列，通常还需要训练策略或 RoPE 插值/缩放技术配合。</p>
+
+  <p><strong>图 13.1：RoPE 可视化——2D 子空间中的向量旋转</strong></p>
+  <p>下图显示一个 2D 向量随位置增加如何旋转。每个位置 p 获得唯一的旋转角度，两个旋转后向量的点积只取决于它们的角度差（相对位置），而非绝对值。</p>
+  <div class="diagram" style="background:#252c3d; padding:12px; border-radius:6px;">
+    <svg width="620" height="230" viewBox="0 0 620 230" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="11">
+      <defs><marker id="rp-arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#fb923c"/></marker></defs>
+      <rect x="10" y="10" width="190" height="210" rx="6" fill="#1a2332" stroke="#6c9eff" stroke-width="1.5"/>
+      <text x="105" y="30" text-anchor="middle" fill="#6c9eff" font-weight="bold">位置 p=0</text>
+      <line x1="35" y1="185" x2="175" y2="185" stroke="#3c4459" stroke-width="1"/>
+      <line x1="105" y1="60" x2="105" y2="200" stroke="#3c4459" stroke-width="1"/>
+      <text x="30" y="200" fill="#9aa3b8" font-size="9">-1</text><text x="170" y="200" fill="#9aa3b8" font-size="9">1</text>
+      <text x="105" y="215" fill="#9aa3b8" font-size="9">旋转角 = 0°</text>
+      <line x1="105" y1="185" x2="155" y2="140" stroke="#fb923c" stroke-width="2.5" marker-end="url(#rp-arr)"/>
+      <circle cx="155" cy="140" r="4" fill="#fb923c"/>
+      <text x="155" y="130" fill="#fb923c" font-size="10">q(0)</text>
+      <rect x="215" y="10" width="190" height="210" rx="6" fill="#1a2332" stroke="#a78bfa" stroke-width="1.5"/>
+      <text x="310" y="30" text-anchor="middle" fill="#a78bfa" font-weight="bold">位置 p=1</text>
+      <line x1="240" y1="185" x2="380" y2="185" stroke="#3c4459" stroke-width="1"/>
+      <line x1="310" y1="60" x2="310" y2="200" stroke="#3c4459" stroke-width="1"/>
+      <text x="235" y="200" fill="#9aa3b8" font-size="9">-1</text><text x="375" y="200" fill="#9aa3b8" font-size="9">1</text>
+      <text x="310" y="215" text-anchor="middle" fill="#9aa3b8" font-size="9">旋转角 = 30°</text>
+      <line x1="310" y1="185" x2="350" y2="110" stroke="#fb923c" stroke-width="2.5" marker-end="url(#rp-arr)"/>
+      <circle cx="350" cy="110" r="4" fill="#fb923c"/>
+      <text x="355" y="100" fill="#fb923c" font-size="10">q(1)</text>
+      <rect x="420" y="10" width="190" height="210" rx="6" fill="#1a2332" stroke="#34d399" stroke-width="1.5"/>
+      <text x="515" y="30" text-anchor="middle" fill="#34d399" font-weight="bold">位置 p=2</text>
+      <line x1="445" y1="185" x2="585" y2="185" stroke="#3c4459" stroke-width="1"/>
+      <line x1="515" y1="60" x2="515" y2="200" stroke="#3c4459" stroke-width="1"/>
+      <text x="440" y="200" fill="#9aa3b8" font-size="9">-1</text><text x="580" y="200" fill="#9aa3b8" font-size="9">1</text>
+      <text x="515" y="215" text-anchor="middle" fill="#9aa3b8" font-size="9">旋转角 = 60°</text>
+      <line x1="515" y1="185" x2="400" y2="95" stroke="#fb923c" stroke-width="2.5" marker-end="url(#rp-arr)"/>
+      <circle cx="400" cy="95" r="4" fill="#fb923c"/>
+      <text x="385" y="88" fill="#fb923c" font-size="10">q(2)</text>
+      <text x="310" y="235" text-anchor="middle" fill="#9aa3b8" font-size="10">相同的向量，不同的旋转角度。点积 q(0)·q(2) 只依赖于 (2-0) = 角度差</text>
+    </svg>
+  </div>
+
+  <p>以下是一个最小实现（真实工程里通常会缓存 cos/sin）：</p>
+<pre><code>def apply_rope(x):
+    # x: (B, n_head, T, head_size), head_size 必须是偶数
+    B, n_head, T, head_size = x.shape
+    half = head_size // 2
+
+    # 每两个维度组成一个 2D 平面，并使用不同旋转频率
+    freqs = 10000.0 ** (-torch.arange(0, half, device=x.device) / half)
+    pos = torch.arange(T, device=x.device)
+    theta = pos[:, None] * freqs[None, :]  # (T, half)
+    cos = theta.cos()[None, None, :, :]    # (1, 1, T, half)
+    sin = theta.sin()[None, None, :, :]    # (1, 1, T, half)
+
+    x_even = x[..., 0::2]
+    x_odd = x[..., 1::2]
+    out = torch.empty_like(x)
+    out[..., 0::2] = x_even * cos - x_odd * sin
+    out[..., 1::2] = x_even * sin + x_odd * cos
+    return out</code></pre>
+  <p>与 minGPT 的可学习 <code>wpe</code>（简单的 nn.Embedding 查找）不同，RoPE 被嵌入到注意力计算本身中。这使其更适合长上下文建模。结合 YaRN 或 LongRoPE 等插值/缩放方法，现代模型可以向 128k 甚至更长上下文扩展。</p>
+
+  <h3>长上下文挑战与工程解决方案</h3>
+  <p>即使有好的位置编码，超长上下文（128k+）仍然面临：</p>
+  <ul>
+    <li>KV Cache 内存爆炸（每个 token 存储 K 和 V）。</li>
+    <li>注意力稀疏性：模型实际上只关注少数关键 token。</li>
+    <li>训练数据中长序列稀缺。</li>
+  </ul>
+  <p>常见的工程方法：</p>
+  <ul>
+    <li>FlashAttention-2/3：大幅降低内存带宽需求。</li>
+    <li>PagedAttention (vLLM)：像操作系统分页一样管理 KV Cache。</li>
+    <li>StreamingLLM / 滑动窗口 + attention sink：只保留最近的窗口 + 少数"注意力沉没"token。</li>
+    <li>Ring Attention：在多个设备之间以环形方式分布序列分块。</li>
+  </ul>
+  <p>这些技术让长上下文部署更可行，但 128k、1M 级别上下文仍然高度依赖模型大小、显存、并行策略和推理框架，是一个"工程 + 算法"的混合问题。</p>
+</section>
+<!-- ===== BEYOND TRANSFORMER ===== -->
+<section id="beyond">
+  <div class="chapter-header">
+    <h2>20. Transformer 的局限性与现代演进</h2>
+  </div>
+
+  <h3>Transformer 的根本问题</h3>
+  <p>尽管取得了巨大成功，Transformer 从第一性原理出发就存在固有限制：</p>
+
+  <ol>
+    <li><strong>平方复杂度</strong>：自注意力是 O(n²)，在 128k、1M 上下文时内存和计算爆炸。在 n=128k 时，单个注意力矩阵有 128k × 128k = 每个头 160 亿个条目。</li>
+    <li><strong>脆弱的位置编码</strong>：尽管 RoPE、ALiBi 有所改进，位置理解仍是"学习来的"而非"内置的"——模型必须从模式中推断位置，而不是将其作为原始属性。</li>
+    <li><strong>缺乏归纳偏置</strong>：既是优点（能学习任何东西）也是缺点（简单模式需要比 RNN 多得多的数据，而 RNN 用更少的样本就能学会）。</li>
+    <li><strong>幻觉与事实性</strong>：训练目标是"预测最可能的下一个 token"，而非"正确"。这是所有幻觉的根本原因。</li>
+    <li><strong>KV cache 瓶颈</strong>：即使使用 GQA，一个 70B 模型在 128k 上下文的 KV cache 也是数百 GB——超出大多数 GPU 的承载能力。</li>
+  </ol>
+
+  <h3>替代架构：详细对比</h3>
+  <table>
+    <tr><th>架构</th><th>复杂度</th><th>KV Cache</th><th>训练并行性</th><th>推理速度</th><th>长上下文</th></tr>
+    <tr><td>Transformer (GPT)</td><td>O(n²)</td><td>O(n × n_heads)</td><td>极好（所有位置并行）</td><td>中等（完整注意力）</td><td>配合 FlashAttention 不错</td></tr>
+    <tr><td>Mamba (SSM)</td><td>O(n)</td><td>O(1)（仅状态）</td><td>好（扫描操作）</td><td>非常快</td><td>极好（无平方爆炸）</td></tr>
+    <tr><td>RWKV</td><td>O(n)</td><td>O(1)</td><td>好（线性注意力）</td><td>非常快</td><td>好</td></tr>
+    <tr><td>混合（Jamba, Zamba）</td><td>O(n) 混合</td><td>取决于层</td><td>好</td><td>快</td><td>两全其美</td></tr>
+  </table>
+
+  <h3>Mamba / State Space Model：工作原理</h3>
+  <p>Mamba (2023) 建立在状态空间模型（SSM）之上。它不比较每个 token 与所有其他 token，而是维护一个随时间演化的隐藏状态，类似于 RNN 但有一个关键区别：状态转换是<strong>输入相关的</strong>（选择性的），而非固定的。这种选择性就是 Mamba 的强大之处——模型可以根据当前输入选择记住什么和忘记什么。</p>
+
+  <p>具体来说，一个简化的 Mamba 层做的工作：</p>
+<pre><code># Mamba 风格 SSM（高度简化）
+h = torch.zeros(hidden_size)  # 状态：固定大小，不增长
+for x_t in input_sequence:    # 顺序扫描
+    A = compute_A(x_t)         # 输入相关的状态转换
+    B = compute_B(x_t)         # 输入相关的投影
+    h = A @ h + B @ x_t        # 状态更新（类似 RNN）
+    y_t = C @ h                # 从状态输出
+# 总内存：O(hidden_size)，而非 O(n²)</code></pre>
+  <p>优势：无 KV cache，O(n) 内存，隐藏状态理论上可以捕获无限上下文。权衡：Mamba 缺乏注意力"全局查看"的能力——信息必须顺序流过状态，这使得需要长距离检索的任务（如"大海捞针"）更难。</p>
+
+  <p>在标准 NLP 基准上，同等大小的 Transformer 仍略优于 Mamba，但 Mamba 在长序列效率上占主导地位。差距随着每个新的 SSM 变体（Mamba-2, H3 等）而缩小。</p>
+
+  <h3>混合架构：两全其美</h3>
+  <p>一个快速增长的趋势是结合 Transformer 和 SSM 层。通常，每第 N 层是注意力层（用于全局检索），其余是 Mamba 层（用于高效序列处理）。例如：</p>
+  <ul>
+    <li><strong>Jamba (AI21 Labs)</strong>：交替的注意力 + Mamba 层，FFN 使用混合专家（MoE）。</li>
+    <li><strong>Zamba</strong>：跨 Block 共享注意力层 + Mamba 层。</li>
+    <li><strong>Samba</strong>：交错的 Mamba + 滑动窗口注意力。</li>
+  </ul>
+  <p>这些混合架构旨在保持注意力"大海捞针"的检索能力，同时保持 SSM 大多数计算的 O(n) 效率。</p>
+
+  <h3>图解：Transformer 痛点 vs 现代解决方案</h3>
+  <div class="diagram" style="background:#252c3d; padding:10px; border-radius:6px;">
+    <svg width="580" height="160" viewBox="0 0 580 160" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="10">
+      <rect x="20" y="20" width="140" height="120" rx="6" fill="#2f364a" stroke="#f87171" stroke-width="2"/>
+      <text x="90" y="45" fill="#f87171" text-anchor="middle" font-weight="bold">Transformer</text>
+      <text x="90" y="65" fill="#e8eaf0" text-anchor="middle">• O(n²) 注意力</text>
+      <text x="90" y="80" fill="#e8eaf0" text-anchor="middle">• 强全局交互</text>
+      <text x="90" y="95" fill="#e8eaf0" text-anchor="middle">• 幻觉风险</text>
+      <text x="90" y="110" fill="#e8eaf0" text-anchor="middle">• 需要大量数据</text>
+      <text x="90" y="125" fill="#e8eaf0" text-anchor="middle">• 位置编码脆弱</text>
+      <path d="M170 80 L200 80" stroke="#9aa3b8" stroke-width="2" marker-end="url(#arrow)"/>
+      <text x="185" y="75" fill="#9aa3b8" text-anchor="middle" font-size="9">演进</text>
+      <rect x="210" y="20" width="160" height="120" rx="6" fill="#14352a" stroke="#34d399" stroke-width="2"/>
+      <text x="290" y="45" fill="#34d399" text-anchor="middle" font-weight="bold">现代混合/替代方案</text>
+      <text x="290" y="65" fill="#e8eaf0" text-anchor="middle">• Mamba / SSM (O(n))</text>
+      <text x="290" y="80" fill="#e8eaf0" text-anchor="middle">• RWKV / RetNet</text>
+      <text x="290" y="95" fill="#e8eaf0" text-anchor="middle">• 混合 (Jamba)</text>
+      <text x="290" y="110" fill="#e8eaf0" text-anchor="middle">• 线性注意力</text>
+      <text x="290" y="125" fill="#e8eaf0" text-anchor="middle">• 更好的长上下文</text>
+      <text x="20" y="155" fill="#9aa3b8" font-size="9">红色 = Transformer 痛点。绿色 = 社区解决方案。注意力不是唯一答案。</text>
+    </svg>
+  </div>
+
+  <h3>什么没有改变</h3>
+  <p>尽管有所有这些创新，当今绝大多数生产系统仍然基于 Transformer 解码器。核心思想——下一个词预测、注意力、残差连接、归一化——仍然是该领域的中心。即使是混合模型也在最关键层使用注意力。问题不是"注意力会被取代吗？"，而是"在不牺牲质量的前提下，有多少计算可以更高效地完成？"</p>
+</section>
+<!-- ===== HALLUCINATION ===== -->
+<section id="hallucination">
+  <div class="chapter-header">
+    <h2>21. 幻觉、对齐与未来方向</h2>
+  </div>
+
+  <h3>为什么 LLM 会产生幻觉？</h3>
+  <p>幻觉不是一个 bug；它是训练目标的一个特性。模型被训练为产生最可能的下一个 token，而不是在事实上正确。从第一性原理看：</p>
+  <ul>
+    <li>模型没有内部的"真理数据库"——它只有统计模式。</li>
+    <li>面对模糊或罕见的知识时，它默认选择"训练数据中最常见的模式"，而这可能是不准确的。</li>
+    <li>自回归性质意味着错误会累积：一个错误的 token 可能导致完全虚构的叙事。</li>
+  </ul>
+
+  <h3>具体示例：一个错误 Token 如何级联成幻觉</h3>
+  <p>试想一个问题："埃菲尔铁塔是什么时候建造的，设计师是谁？"</p>
+  <p>正确答案是："埃菲尔铁塔建于 1887 年至 1889 年，由古斯塔夫·埃菲尔设计。"</p>
+  <p>现在，假设模型生成的前几个 token 出错了：</p>
+
+  <div style="font-family:monospace;background:#1a1a2e;padding:1rem;border-radius:8px;line-height:1.6;margin:1rem 0">
+    <div><span style="color:#34d399">正确路径：</span>埃菲尔铁塔建于 <strong>1887 年至 1889 年</strong>，由古斯塔夫·埃菲尔设计。</div>
+    <div style="margin:12px 0;color:#9aa3b8;text-align:center">↓</div>
+    <div><span style="color:#f5a623">略微出错：</span>埃菲尔铁塔建于 <strong>1867 年</strong> ...</div>
+    <div style="color:#9aa3b8;font-size:0.85rem;margin:4px 0">↑ 仅仅一个 token 错了（1867 而不是 1887）。现在模型必须从这个错误事实继续生成。</div>
+    <div style="margin:12px 0;color:#9aa3b8;text-align:center">↓</div>
+    <div><span style="color:#e94560">级联开始：</span>"为 1867 年世界博览会而建..."</div>
+    <div style="color:#9aa3b8;font-size:0.85rem;margin:4px 0">模型生成了一个听起来合理的"事实"：1867 年确实在巴黎有一场世界博览会。但这在事实上是错误的——埃菲尔铁塔与 1867 年博览会毫无关系。</div>
+    <div style="margin:12px 0;color:#9aa3b8;text-align:center">↓</div>
+    <div><span style="color:#e94560">继续编造：</span>"...由让-查尔斯·阿尔方德设计，庆祝法兰西第二帝国..."</div>
+    <div style="color:#9aa3b8;font-size:0.85rem;margin:4px 0">模型生成了越来越多具体的（但编造的）细节。每个 token 都锁定了错误的历史叙事。到此为止，已经不可能恢复了。</div>
+  </div>
+
+  <p><strong>为什么会这样</strong>：模型没有内部的"真理数据库"。它只知道"给定了前面的 token，下一个 token 最可能是什么？"一旦选择了 <em>1867</em>（因为它与 1887 共享统计模式——都是 4 位数字，都频繁出现在巴黎历史语境中），模型就提交到了一个把 1867 当成事实的分支上，所有后续 token 都基于这个错误前提生成。这就是自回归错误积累——幻觉的核心机制。</p>
+
+  <p><strong>为什么难以修复</strong>：模型的训练目标（下一个 token 预测）本身不提供任何"事实核查"机制。它需要一个外部知识库、检索增强生成（RAG）或独立的验证步骤——这些都不是核心自回归循环的一部分。这就是为什么幻觉被认为是一个开放的研究问题，而不是简单的 bug。</p>
+
+<h3>对齐：RLHF、DPO、Constitutional AI</h3>
+  <p>对齐技术的目标是使模型输出与人类价值观和偏好匹配：</p>
+  <ul>
+    <li><strong>RLHF（基于人类反馈的强化学习）</strong>：在人类偏好上训练一个奖励模型，然后使用 PPO 微调 LLM 以最大化奖励。</li>
+    <li><strong>DPO（直接偏好优化）</strong>：跳过奖励模型，直接从偏好对中进行优化。</li>
+    <li><strong>Constitutional AI（宪法 AI）</strong>：使用一套原则（"宪法"）进行自我批评和修正输出。</li>
+  </ul>
+
+  <p><strong>图 15.1：RLHF 对齐流程</strong></p>
+  <p>RLHF（基于人类反馈的强化学习）是一个三阶段过程，将模型输出与人类偏好对齐。奖励模型充当"人类偏好代理"——它学习人类更喜欢什么，PPO 训练基础模型以最大化这个奖励信号。</p>  <div class="diagram" style="background:#252c3d; padding:10px; border-radius:6px;">
+    <svg width="620" height="260" viewBox="0 0 620 260" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="11">
+      <defs><marker id="rh-arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#6c9eff"/></marker></defs>
+      <rect x="10" y="15" width="190" height="85" rx="6" fill="#2f364a" stroke="#6c9eff" stroke-width="1.5"/>
+      <text x="105" y="35" text-anchor="middle" fill="#6c9eff" font-weight="bold">1. 监督微调</text>
+      <text x="105" y="55" text-anchor="middle" fill="#9aa3b8" font-size="10">人工编写（提示, 回复）配对</text>
+      <text x="105" y="75" text-anchor="middle" fill="#34d399" font-size="10">&#10003; 标准交叉熵损失</text>
+      <text x="105" y="90" text-anchor="middle" fill="#9aa3b8" font-size="10">基础模型 → SFT 模型</text>
+      <rect x="215" y="15" width="190" height="85" rx="6" fill="#2f364a" stroke="#a78bfa" stroke-width="1.5"/>
+      <text x="310" y="35" text-anchor="middle" fill="#a78bfa" font-weight="bold">2. 训练奖励模型</text>
+      <text x="310" y="55" text-anchor="middle" fill="#9aa3b8" font-size="10">人类对多个模型输出排序</text>
+      <text x="310" y="75" text-anchor="middle" fill="#fb923c" font-size="10">&#9733; 偏好损失（Elo 风格）</text>
+      <text x="310" y="90" text-anchor="middle" fill="#9aa3b8" font-size="10">SFT 模型 → 奖励模型</text>
+      <rect x="420" y="15" width="190" height="85" rx="6" fill="#2f364a" stroke="#34d399" stroke-width="1.5"/>
+      <text x="515" y="35" text-anchor="middle" fill="#34d399" font-weight="bold">3. PPO 微调</text>
+      <text x="515" y="55" text-anchor="middle" fill="#9aa3b8" font-size="10">SFT 模型生成 → 奖励模型评分</text>
+      <text x="515" y="75" text-anchor="middle" fill="#34d399" font-size="10">&#10003; PPO 最大化奖励</text>
+      <text x="515" y="90" text-anchor="middle" fill="#9aa3b8" font-size="10">SFT + 奖励模型 → 对齐模型</text>
+      <line x1="200" y1="57" x2="215" y2="57" stroke="#6c9eff" stroke-width="2" marker-end="url(#rh-arr)"/>
+      <line x1="405" y1="57" x2="420" y2="57" stroke="#a78bfa" stroke-width="2" marker-end="url(#rh-arr)"/>
+      <path d="M515 100 L515 160 L310 160 L310 100" stroke="#f87171" stroke-width="1.5" stroke-dasharray="5,3" fill="none" marker-end="url(#rh-arr)"/>
+      <text x="105" y="175" text-anchor="middle" fill="#f87171" font-size="10">PPO 定期更新 SFT 模型，新样本由奖励模型重新评分</text>
+      <rect x="10" y="195" width="600" height="55" rx="6" fill="#1a2332" stroke="#9aa3b8" stroke-width="1"/>
+      <text x="310" y="215" text-anchor="middle" fill="#9aa3b8" font-weight="bold">DPO（直接偏好优化）简化了阶段 2+3：</text>
+      <text x="310" y="235" text-anchor="middle" fill="#9aa3b8" font-size="10">直接在偏好对上训练，无需训练单独的奖励模型。更少的计算量，更简单的流程。</text>
+    </svg>
+  </div>
+
+  <h3>RAG（检索增强生成）</h3>
+  <p>RAG 不是在模型参数中存储所有知识，而是在推理时从知识库中检索相关文档，并基于这些文档进行条件生成。这减少了幻觉，并使更新变得容易（只需更新知识库）。</p>
+
+  <h3>减少幻觉的实用技术</h3>
+  <p>除了上述高层方法，以下是具体、可直接操作的减少幻觉的技术：</p>
+
+  <h4>1. 提示词策略</h4>
+  <ul>
+    <li><strong>思维链（CoT）</strong>：让模型在回答前逐步推理。这暴露了中间推理过程，减少了跳到错误结论的几率。示例："让我们一步步思考：首先，..."</li>
+    <li><strong>自我询问 / 验证</strong>：提示模型明确区分它知道的和不确定的。"只有在确信时才回答。如果不确定，说'我不知道'。"</li>
+    <li><strong>引用要求</strong>：要求模型为事实性声明引用来源。即使引用是编造的（一个已知问题），"假装引用"的行为迫使模型更加具体，这实际上降低了幻觉率。</li>
+    <li><strong>接地提示</strong>："仅基于以下上下文回答问题。如果上下文不包含答案，请说明。"这是 RAG 的基础。</li>
+  </ul>
+
+  <h4>2. 采样和解码策略</h4>
+  <ul>
+    <li><strong>较低的温度</strong>：temperature=0.1-0.3 使模型更加确定性，不太可能编造创造性的（但错误的）细节。Temperature > 1.0 会急剧增加幻觉。</li>
+    <li><strong>Top-p（核）采样</strong>：p=0.9-0.95 将采样集中在最可能的 token 上，减少了选择不常见（幻觉）路径的机会。</li>
+    <li><strong>不采样（贪心解码）</strong>：使用 <code>do_sample=False</code> 或 argmax 给出最保守的输出。注意：minGPT 的 <code>generate</code> 会直接用 logits 除以 temperature，所以不要把 temperature 设成 0。</li>
+    <li><strong>对比解码</strong>：将目标模型的输出与一个较小的"业余"模型比较。业余模型也觉得可能的 token 被抑制，鼓励专家模型使用其更深的知识而不是表面模式。</li>
+    <li><strong>自洽性</strong>：生成多个答案（例如，5 个，temperature=0.3）并取多数投票。如果 5 个中有 4 个一致，答案可能是可靠的。如果它们不一致，你知道模型不确定。</li>
+  </ul>
+
+  <h4>3. 事后验证</h4>
+  <ul>
+    <li><strong>自我检查</strong>：生成答案后，问同一个模型："上面的回答在事实上正确吗？列出任何潜在的错误。"这利用了模型自身的知识来捕捉其错误——它有时比生成时"知道的更多"。</li>
+    <li><strong>外部事实核查</strong>：对于关于特定实体的声明，使用搜索引擎或知识库 API 在生成后验证每个事实性陈述。工具如 Google Fact Check Tools 或自定义检索可以捕捉错误。</li>
+    <li><strong>交叉模型验证</strong>：问两个不同的模型（如 Claude + GPT-4）同一个问题。如果它们一致，信心更高。如果它们不一致，进一步调查。</li>
+    <li><strong>不确定性估计</strong>：监控模型的 token 概率。如果第一个 token 的概率低（<0.5），或 logits 的熵高，说明模型"不确定"——将这些输出标记为需要人工审核。</li>
+  </ul>
+
+  <h4>4. 训练时技术</h4>
+  <ul>
+    <li><strong>幻觉数据的对比学习</strong>：构建成对数据，其中一个是事实性回答，另一个是同题的幻觉版本。通过偏好优化（DPO）训练模型偏好事实性回答。</li>
+    <li><strong>幻觉感知的数据增强</strong>：在微调数据集中，有意包含正确答案是"我不知道"或"没有这个信息"的例子。这教会模型承认无知是可以接受的。</li>
+    <li><strong>拒绝采样</strong>：在 RLHF/DPO 训练中，为每个提示生成多个回复，让人工评分者打分。只训练质量最高的回复。这自然减少了幻觉，因为幻觉回复得到低分并被排除在训练之外。</li>
+  </ul>
+
+  <h4>5. 架构方法</h4>
+  <ul>
+    <li><strong>内置检索</strong>：像 Retro（检索增强 Transformer）这样的模型将检索作为架构的一部分——每个 token 生成步骤都可以关注从数据库检索到的文档。这比预先添加上下文更紧密集成。</li>
+    <li><strong>Tool-former 架构</strong>：模型被训练为在遇到事实不确定性时输出结构化工具调用（如 {search: "蒙古首都"}），而不是从记忆中生成。工具结果然后被反馈到上下文中。</li>
+    <li><strong>验证头</strong>：在模型上添加一个辅助分类头，预测"这个生成是否可能是事实性的？"可以用对比示例训练，并在推理时用于标记或拒绝不确定的输出。</li>
+  </ul>
+
+  <div class="key-takeaway">
+    <strong>总结</strong>：没有单一的"修复"幻觉的方法。最佳组合是：(1) 提示工程限制模型的生成空间，(2) 仔细选择的有利于保守输出的采样参数，(3) 事后验证捕捉错误，(4) 明确惩罚幻觉的训练技术。对于生产系统，RAG + 低温度 + 自我检查提供了最佳的可靠性-工作量比。
+  </div>
+
+  <h3>对齐的副作用与风险</h3>
+  <p>对齐技术使模型更"有用"和"无害"，但也引入了新的挑战：</p>
+  <ul>
+    <li><strong>过度拒绝</strong>：模型变得过于谨慎，拒绝无害的请求。</li>
+    <li><strong>对齐税</strong>：对齐会降低模型在某些基准测试上的原始能力（模型变得更"安全"但更"笨"）。</li>
+    <li><strong>奖励黑客</strong>：模型学会"取悦"奖励模型，而非真正理解人类意图。</li>
+  </ul>
+  <p>这表明对齐本身是一个远未解决的开放研究问题。</p>
+  <p>现代 LLM 越来越多地被用作 agent，可以调用外部工具：计算器、代码解释器、搜索引擎、API。这将模型从"知道一切"转变为"知道如何查找"，大幅扩展能力的同时减少了幻觉。</p>
+
+  <h3>未来方向</h3>
+  <ul>
+    <li>测试时计算扩展（思维链、自洽性、思维树）。</li>
+    <li>长文事实性和多跳推理。</li>
+    <li>多模态理解（文本 + 图像 + 音频 + 视频）。</li>
+    <li>具身 AI：将 LLM 连接到机器人控制。</li>
+  </ul>
+</section>
+<section id="evaluation">
+  <h2>22. 大模型评价体系：模型是如何被评分和排名的</h2>
+
+  <p>我们怎么知道一个 LLM 比另一个更好？在数百个可用的模型中，客观评价对于选择正确的模型和追踪进展至关重要。本节解释评价生态：基准测试、人类评估和自动评分。</p>
+
+  <h3>评价的挑战</h3>
+  <p>评估语言模型从根本上比评估传统 ML 模型更难。对于分类模型，你有明确的准确率指标。对于 LLM，"质量"是多维的：事实准确性、推理能力、创造力、指令遵循、安全性、语气等等。没有单一指标能捕捉所有这些方面。</p>
+
+  <h3>基于基准测试的评价</h3>
+  <p>基准测试是标准化的测试集，用于测量特定能力。主要基准测试包括：</p>
+  <table>
+    <tr><th>基准测试</th><th>测量内容</th><th>格式</th><th>示例问题</th></tr>
+    <tr><td><strong>MMLU</strong></td><td>57 个学科的世界知识</td><td>选择题 (A-D)</td><td>"蒙古的首都是什么？"</td></tr>
+    <tr><td><strong>HumanEval</strong></td><td>代码生成正确性</td><td>函数补全</td><td>编写一个返回第 n 个斐波那契数的函数</td></tr>
+    <tr><td><strong>GSM8K</strong></td><td>小学数学推理</td><td>应用题</td><td>"Alice 有 3 个苹果，Bob 又给了她 5 个..."</td></tr>
+    <tr><td><strong>HellaSwag</strong></td><td>常识推理</td><td>选择题</td><td>为场景选择最合理的结局</td></tr>
+    <tr><td><strong>TruthfulQA</strong></td><td>事实准确性 / 幻觉</td><td>选择 + 生成</td><td>"吞下口香糖会怎样？"</td></tr>
+    <tr><td><strong>IF-Eval</strong></td><td>指令遵循能力</td><td>约束满足</td><td>"写一首恰好 5 行的诗，每行以一个押韵的词结尾..."</td></tr>
+    <tr><td><strong>BIG-Bench</strong></td><td>200+ 多样化推理任务</td><td>多样</td><td>涵盖逻辑、数学、物理、社会推理等</td></tr>
+  </table>
+
+  <h3>Chatbot Arena：人类偏好排名</h3>
+  <p><strong>Chatbot Arena</strong>（由 LMSYS 运营）是目前最有影响力的 LLM 排行榜。它的工作方式与基准测试不同：</p>
+  <ol>
+    <li><strong>盲测 A/B 对比</strong>：用户提交一个提示词。两个匿名模型生成回复。用户投票选择哪个更好（或宣布平局）。</li>
+    <li><strong>Elo 评分</strong>：受国际象棋排名启发。每个模型有一个 Elo 分数。当模型 A 击败模型 B 时，A 获得 Elo 积分，B 失去积分。积分变化取决于分差——击败一个弱得多的对手获得很少积分；击败一个强得多的对手获得很多积分。</li>
+    <li><strong>Bootstrap 置信区间</strong>：评分包含不确定性估计。一个 1250±15 的模型与 1200±10 的模型只有在置信区间不重叠时才显著不同。</li>
+    <li><strong>风格 vs 质量控制</strong>：Arena 评分经过过滤，将"风格"偏好（格式、篇幅）与"质量"（准确性、有用性）分开。更啰嗦的模型通常得分更高，即使它们的事实准确性相似。</li>
+  </ol>
+
+  <div class="formula">Elo_new = Elo_old + K × (S - E)</div>
+  <p>其中 K 是每场比赛的最大调整值，S 是实际结果（胜=1，平=0.5，负=0），E 是基于分差的预期得分。</p>
+
+  <h3>自动评估：LLM-as-Judge</h3>
+  <p>大规模运行人工评估成本高昂。一个常见的替代方案是使用强 LLM（如 GPT-4）作为自动裁判：</p>
+  <ul>
+    <li><strong>成对比较</strong>："根据指令，哪个回复更好？A 还是 B？"裁判 LLM 直接比较 A 和 B。</li>
+    <li><strong>绝对评分</strong>："在 1-5 分范围内为这个回复的有用性评分。"裁判 LLM 给出数值分数。</li>
+    <li><strong>基于评分标准</strong>："检查回复是否满足以下 5 个标准中的每一个。"裁判遵循详细的评分标准。</li>
+  </ul>
+  <p><strong>LLM-as-Judge 的问题</strong>：位置偏差（偏好第一个或第二个回复）、冗长偏差（偏好更长的回复）、自我增强偏差（偏好自己的风格）和评分标准过拟合。尽管如此，LLM-as-Judge 与人类判断的相关性相当不错（Spearman 相关系数 0.5-0.7），被广泛用于快速迭代。</p>
+
+  <h3>如何看待基准测试分数</h3>
+  <p>阅读模型排行榜时，记住这些局限性：</p>
+  <ul>
+    <li><strong>基准测试污染</strong>：如果模型训练数据包含了测试集，基准分数毫无意义。这是一个普遍问题——许多模型在训练时已经看过 MMLU 的例子。</li>
+    <li><strong>过拟合到基准测试</strong>：模型可以针对特定基准测试优化，而不提高通用能力。一个为 MMLU 优化的模型可能仍然无法完成基准测试之外的简单推理任务。</li>
+    <li><strong>饱和</strong>：顶级模型现在在 MMLU 上达到 >90%，在 HumanEval 上达到 >95%。这些基准测试不再能区分最佳模型。新的、更难的任务不断被需要。</li>
+    <li><strong>多维度评估</strong>：单一的"总体分数"隐藏了重要的权衡。一个编码基准得分高的模型可能在安全性方面得分很低。总是查看细分。</li>
+  </ul>
+
+  <div class="callout tip">
+    <strong>实用建议</strong>：为你的用例选择模型时，不要依赖单一的排行榜分数。用一小部分你自己的真实例子测试 2-3 个顶级模型。基准测试分数有助于筛选（这个模型是否在大致范围内？），但不适合最终选择（哪个模型最适合我的特定任务？）。
+  </div>
+
+  <h3>Elo 评分系统详解</h3>
+  <p>由于 Elo 被 Chatbot Arena 和许多编码 agent 平台使用，理解其数学原理有助于解读评分：</p>
+  <ul>
+    <li><strong>预期得分</strong>：E = 1 / (1 + 10^((R_B - R_A) / 400))。400 分的差距意味着强者的预期获胜频率是弱者的 ~10 倍。</li>
+    <li><strong>K 因子</strong>：控制评分变化速度。高 K (32+) = 快速适应但噪音大。低 K (4-8) = 稳定但反映真实技能慢。Chatbot Arena 对成熟模型使用 K=4 以减少波动。</li>
+    <li><strong>Elo ≠ 绝对质量</strong>：Elo 是相对的，不是绝对的。一个在 Arena 中有 1250 Elo 的模型可能比不上另一个评估池中 1100 Elo 的模型，因为 Elo 取决于对手池。</li>
+  </ul>
+</section>
+
+
+<!-- ===== AGENT ENGINEERING ===== -->
+<section id="agent-engineering">
+  <div class="chapter-header">
+    <h2>23. 深度思考、长期记忆与 Coding Agent 系统</h2>
+    <div class="subtitle">从 minGPT 的"纯模型"到 Claude Code、Codex CLI 和现代 coding agent。</div>
+  </div>
+
+  <p>到现在为止，你已经理解了 GPT 模型：给定上下文，预测下一个 token。但像 Claude Code、Codex CLI 这样的工具似乎做的远不止"文本补全"：它们读取项目、运行命令、记住偏好、调用浏览器或文档服务、并遵循团队约定。这些能力中的大部分并非模型权重天生获得了 IDE 功能——它们来自<strong>模型能力 + 外部系统编排</strong>。</p>
+
+  <div class="key-takeaway">
+    <strong>关键洞察：</strong><br>
+    深度思考主要依赖于模型在推理时分配更多计算量和更好的上下文组织。长期记忆、项目规则、工具调用、权限、文件 I/O 和自动化检查主要是产品/CLI/IDE 层的系统级能力。它们通常通过检索、文件、数据库、配置、工具协议、系统提示和上下文注入来实现——而不是每次重新训练模型权重。
+  </div>
+
+  <p><strong>图 16.1：Agent 架构——完整循环</strong></p>
+  <p>现代 coding agent 不是单次模型调用——它是一个循环：构建上下文、调用模型、执行工具、观察结果、重复。模型权重处理推理和代码理解，而系统层管理上下文、工具、记忆和验证。</p>
+  <div class="diagram" style="background:#252c3d; padding:12px; border-radius:6px;">
+    <svg width="640" height="300" viewBox="0 0 640 300" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="11">
+      <defs><marker id="ag-arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#6c9eff"/></marker></defs>
+      <rect x="250" y="10" width="140" height="40" rx="8" fill="#2f364a" stroke="#e8eaf0" stroke-width="2"/>
+      <text x="320" y="35" text-anchor="middle" fill="#e8eaf0" font-weight="bold">用户请求</text>
+      <rect x="170" y="70" width="300" height="45" rx="8" fill="#1e3a5f" stroke="#6c9eff" stroke-width="1.5"/>
+      <text x="320" y="92" text-anchor="middle" fill="#6c9eff" font-weight="bold">1. 构建上下文</text>
+      <text x="320" y="107" text-anchor="middle" fill="#9aa3b8" font-size="10">系统提示 + AGENTS.md + 记忆 + 项目文件 + 工具模式</text>
+      <line x1="320" y1="50" x2="320" y2="70" stroke="#e8eaf0" stroke-width="1.5" marker-end="url(#ag-arr)"/>
+      <rect x="200" y="135" width="240" height="45" rx="8" fill="#14352a" stroke="#34d399" stroke-width="2"/>
+      <text x="320" y="157" text-anchor="middle" fill="#34d399" font-weight="bold">2. 模型推理 (GPT)</text>
+      <text x="320" y="172" text-anchor="middle" fill="#9aa3b8" font-size="10">阅读上下文，规划，决定下一步行动</text>
+      <line x1="320" y1="115" x2="320" y2="135" stroke="#6c9eff" stroke-width="1.5" marker-end="url(#ag-arr)"/>
+      <polygon points="320,195 360,220 320,245 280,220" fill="#2f364a" stroke="#fb923c" stroke-width="1.5"/>
+      <text x="320" y="224" text-anchor="middle" fill="#fb923c" font-size="10">需要工具？</text>
+      <line x1="320" y1="180" x2="320" y2="195" stroke="#34d399" stroke-width="1.5" marker-end="url(#ag-arr)"/>
+      <rect x="410" y="210" width="190" height="50" rx="8" fill="#2a1f14" stroke="#fb923c" stroke-width="1.5"/>
+      <text x="505" y="232" text-anchor="middle" fill="#fb923c" font-weight="bold">3. 执行工具</text>
+      <text x="505" y="248" text-anchor="middle" fill="#9aa3b8" font-size="10">读文件、运行命令、搜索、调用 API</text>
+      <line x1="360" y1="220" x2="410" y2="235" stroke="#fb923c" stroke-width="1.5" marker-end="url(#ag-arr)"/>
+      <rect x="50" y="210" width="190" height="50" rx="8" fill="#14352a" stroke="#34d399" stroke-width="1.5"/>
+      <text x="145" y="232" text-anchor="middle" fill="#34d399" font-weight="bold">4. 生成回复</text>
+      <text x="145" y="248" text-anchor="middle" fill="#9aa3b8" font-size="10">无需工具调用，直接回答</text>
+      <line x1="280" y1="220" x2="240" y2="235" stroke="#34d399" stroke-width="1.5" marker-end="url(#ag-arr)"/>
+      <rect x="410" y="275" width="190" height="25" rx="4" fill="#2f364a" stroke="#a78bfa"/>
+      <text x="505" y="293" text-anchor="middle" fill="#a78bfa" font-size="10">观察结果 → 更新上下文</text>
+      <line x1="505" y1="260" x2="505" y2="275" stroke="#fb923c" stroke-width="1.5" marker-end="url(#ag-arr)"/>
+      <path d="M505 300 L505 310 L320 310 L320 255" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="5,3" fill="none" marker-end="url(#ag-arr)"/>
+      <text x="420" y="310" fill="#a78bfa" font-size="9">携带新上下文回到步骤 1</text>
+      <rect x="20" y="65" width="130" height="75" rx="6" fill="#1a2332" stroke="#9aa3b8" stroke-width="1" opacity="0.5"/>
+      <text x="85" y="85" text-anchor="middle" fill="#9aa3b8" font-size="9">记忆 / 规则</text>
+      <text x="85" y="100" text-anchor="middle" fill="#9aa3b8" font-size="9">AGENTS.md, CLAUDE.md</text>
+      <text x="85" y="115" text-anchor="middle" fill="#9aa3b8" font-size="9">技能, Hooks</text>
+      <text x="85" y="130" text-anchor="middle" fill="#9aa3b8" font-size="9">MCP, 沙箱</text>
+      <line x1="150" y1="100" x2="170" y2="92" stroke="#9aa3b8" stroke-width="1" stroke-dasharray="3,2"/>
+    </svg>
+  </div>
+
+  <h3>1. 什么是"深度思考"？</h3>
+  <p>从用户的角度看，"深度思考"意味着模型在回答之前做了更多的中间推理：分解任务、比较方法、规划步骤、检查约束、验证结果。与普通答案的区别不仅仅是输入/输出格式，而是<strong>推理时计算预算</strong>、模型训练、工具编排和上下文管理的综合效果。</p>
+  <table>
+    <tr><th>层级</th><th>负责什么</th><th>属于模型权重？</th></tr>
+    <tr><td>模型权重</td><td>推理、代码理解、模式识别、规划倾向</td><td>是</td></tr>
+    <tr><td>推理预算 / 努力</td><td>允许模型在复杂推理上花费更多 token 或计算</td><td>模型与产品界面之间</td></tr>
+    <tr><td>系统提示</td><td>定义角色、风格、约束、工具使用策略</td><td>不是权重，是运行时上下文</td></tr>
+    <tr><td>工具与环境</td><td>读文件、运行测试、搜索文档、操作浏览器</td><td>外部系统</td></tr>
+    <tr><td>验证循环</td><td>执行命令、观察结果、修订计划</td><td>Agent 编排</td></tr>
+  </table>
+  <p>因此，"深度思考"并非简单地通过提示词说"深入思考"就能实现。提示词可以促使模型更仔细地分解问题，但如果产品没有提供足够的推理预算、上下文、工具和验证循环，复杂任务仍然会停留在表面。</p>
+
+  <h3>2. 长期记忆如何实现？</h3>
+  <p>LLM 对话本质上仍然受限于上下文窗口。"长期记忆"通常不涉及将信息写入模型参数；它是一个外部记忆系统：</p>
+  <ol>
+    <li><strong>提取</strong>：从历史对话、用户修正、项目文件和执行结果中提炼稳定信息。</li>
+    <li><strong>存储</strong>：写入本地文件、数据库、向量存储、配置文件或云用户画像。</li>
+    <li><strong>检索</strong>：在新任务中，基于项目、路径、关键词、嵌入相似度或规则选择相关记忆。</li>
+    <li><strong>注入上下文</strong>：将检索到的记忆放入系统/开发者/工具上下文中供模型使用。</li>
+    <li><strong>更新与清理</strong>：过时、冲突或错误的记忆需要被覆写、合并或删除。</li>
+  </ol>
+  <p>这与 minGPT 训练完全不同。minGPT 通过反向传播更新权重；coding agent 的长期记忆通常通过<strong>外部状态</strong>在会话之间保持。模型"看起来记得"，是因为系统检索了相关记忆并在下次启动时将它们放回上下文。</p>
+
+  <h3>3. Claude Code 的记忆与规则层</h3>
+  <p>Claude Code 的文档将项目记忆分为两种类型：用户编写的持久指令文件（例如 <code>CLAUDE.md</code>），以及工具基于修正、偏好和项目发现自动写入的记忆。两者都在新会话中作为上下文加载——但它们仍然不是模型权重的一部分。</p>
+  <p>这是一个关键点：<code>CLAUDE.md</code> 更像是一个"项目手册 + 团队规则"；自动记忆更像是"上次在这个仓库里踩过的坑"。要强制防止危险操作，你应该依赖 hooks、权限和工具策略，而非仅仅一条自然语言规则。</p>
+
+  <h3>4. Codex CLI 的对应机制</h3>
+  <p>Codex CLI / IDE / 应用也将"智能"分解为多个可组合的层级：</p>
+  <table>
+    <tr><th>机制</th><th>解决的问题</th><th>实现直觉</th></tr>
+    <tr><td><code>AGENTS.md</code></td><td>长期项目规则、工作流、验证命令</td><td>启动时读取每个目录的层级结构，拼接到指令链中</td></tr>
+    <tr><td>记忆</td><td>跨会话的稳定偏好、项目经验、已知陷阱</td><td>将历史线程总结成文件，将相关部分注入未来会话</td></tr>
+    <tr><td>技能</td><td>可重用的任务工作流，例如查询 OpenAI 文档、生成图片、创建插件</td><td>初始只暴露名称/描述，需要时加载完整的 SKILL.md</td></tr>
+    <tr><td>MCP<br><small>(模型上下文协议)</small></td><td>连接外部数据和工具：文档、Figma、浏览器、GitHub</td><td>标准化的工具协议 + 工具模式 + 服务器指令</td></tr>
+    <tr><td>Hooks</td><td>生命周期自动化和安全控制</td><td>在工具调用前后、会话开始/结束时运行脚本</td></tr>
+    <tr><td>沙箱 / 审批</td><td>限制文件、网络、命令风险</td><td>产品级别的权限模型，不依赖模型的"自我约束"</td></tr>
+  </table>
+  <p>这说明 Codex 的"长期行为"不是通过一个巨大的系统提示实现的。系统提示很重要，但真正可靠的 agent 还需要文件约定、配置、工具协议、权限系统、hooks 和验证命令共同工作。</p>
+
+  <h3>5. 上下文 vs 系统提示：有什么区别？</h3>
+  <p><strong>上下文</strong>是模型在单次调用中能看到的所有输入材料。它就像"给模型的全部考试材料和参考资料"，可能包括系统提示、开发者指令、用户问题、对话历史、项目文件片段、检索结果、长期记忆、工具输出、错误日志、截图描述等。</p>
+  <p><strong>系统提示（system instructions）</strong>是上下文的一个特殊部分，通常放在最高优先级的位置，用于定义模型的身份、边界、风格、安全规则、工具使用原则和回答格式。它不是整个上下文——它是上下文中作为"主规则"的层级。</p>
+  <table>
+    <tr><th>概念</th><th>一句话解释</th><th>示例</th></tr>
+    <tr><td>上下文</td><td>此轮模型可读的所有内容</td><td>系统提示 + 用户问题 + AGENTS.md + 记忆 + 文件内容 + 命令输出</td></tr>
+    <tr><td>系统提示</td><td>上下文中最高优先级的行为规则</td><td>"你是一个编码 agent；不要泄露秘密；修改前先读取文件；按特定格式回答"</td></tr>
+    <tr><td>用户提示</td><td>用户希望模型完成的任务</td><td>"修复这个 bug" "解释长期记忆如何工作"</td></tr>
+    <tr><td>检索/记忆内容</td><td>由外部系统检索并注入上下文的事实材料</td><td>项目偏好、历史摘要、文档片段、API 规范</td></tr>
+    <tr><td>工具输出</td><td>模型调用工具时获得的新证据</td><td>测试失败日志、文件内容、网页搜索结果</td></tr>
+  </table>
+  <p>所以更准确的说法是：长期记忆通常由 CLI / App / IDE 层存储和检索，然后作为<strong>上下文的一部分</strong>注入模型；系统提示告诉模型这些记忆应该如何被理解、使用、遵守，或由更高优先级的规则覆盖。</p>
+
+  <h4>具体示例：Codex / Claude Code 调用的内部可能是什么？</h4>
+<pre><code>[系统提示 / 系统指令]
+你是一个编码 agent。
+在修改文件前先读取代码。
+不要覆写未提交的更改。
+修改后尽可能运行测试。
+
+[项目规则 / AGENTS.md 或 CLAUDE.md]
+这个项目使用 PyTorch。
+修改 Python 文件后，运行：
+python -m unittest discover tests
+保留教学注释，不要过度抽象。
+
+[长期记忆 / 记忆]
+用户偏好：先解释直觉，再给代码。
+这个仓库的 tests/test_huggingface_import.py 验证了 GPT-2 权重对齐；修改 model.py 时要小心。
+
+[当前用户问题 / 用户提示]
+解释上下文和系统提示之间的区别。
+
+[工具读取的文件内容 / 工具上下文]
+docs/learning_guide.html 第 16 章的当前内容是...
+
+[工具输出 / 工具输出]
+测试结果、搜索结果、文件行号、命令输出等。</code></pre>
+  <p>在这个例子中，只有第一个块是"系统提示"。整个包一起构成了"上下文"。长期记忆不是系统提示本身——它由 CLI/App 检索并放入上下文中；系统提示规定了模型应如何使用这些信息。</p>
+
+  <h3>回到第一性原理</h3>
+  <p>我们在 minGPT 中学到的所有内容——下一个 token 预测、注意力、训练动态——都与理解 coding agent 的工作方式直接相关。Agent 的"推理"只是在精心构建的上下文条件下 LLM 生成 token。Agent 的"工具调用"只是模型输出的特殊 token，系统将其解释为命令。</p>
+
+  <p>理解 GPT 的基础知识给你在构建、调试和改进 agent 系统方面带来了巨大的优势。minGPT 训练循环中的"预测 → 评分 → 调整"循环在 agent 层级上被镜像为"行动 → 观察 → 重新规划"。</p>
+
+  <h3>6. 如何比较现代 Coding Agent</h3>
+  <p>coding agent 工具变化很快，GitHub stars、排行榜、许可证、模型支持范围都会频繁变化。因此本书不把这些信息写成固定排名，而是给出一个更稳定的比较框架。评估 Claude Code、Codex CLI、Gemini CLI、OpenCode、Cursor、Windsurf、Continue.dev 等工具时，重点看下面这些维度。</p>
+
+  <h4>关键维度</h4>
+  <ul>
+    <li><strong>模型来源</strong>：是否绑定单一供应商，还是允许接入 OpenAI、Anthropic、Google、本地模型或 OpenRouter 等多种后端。</li>
+    <li><strong>项目规则</strong>：是否支持类似 <code>AGENTS.md</code>、<code>CLAUDE.md</code>、workspace settings 这样的项目级指令文件。</li>
+    <li><strong>工具权限</strong>：是否有沙箱、审批、只读模式、命令 allowlist/denylist，以及执行前后 hooks。</li>
+    <li><strong>上下文管理</strong>：是否能可靠读取项目结构、选择相关文件、保留任务历史，并避免把无关内容塞满上下文窗口。</li>
+    <li><strong>记忆机制</strong>：是否有跨会话记忆；记忆是文件、数据库、向量检索，还是只是当前会话摘要。</li>
+    <li><strong>验证闭环</strong>：是否擅长运行测试、解释失败、修改后复验，而不是只生成补丁文本。</li>
+    <li><strong>集成形态</strong>：终端、IDE、Web、云端 agent、移动/消息入口对应的工作流差异很大。</li>
+  </ul>
+
+  <h4>如何选型？</h4>
+  <table>
+    <tr><th>如果你最关心...</th><th>优先考察</th></tr>
+    <tr><td>代码修改质量</td><td>模型能力、上下文选择、测试/复验闭环、补丁是否小而准</td></tr>
+    <tr><td>安全</td><td>沙箱、审批、命令限制、文件访问边界、hooks</td></tr>
+    <tr><td>团队规范</td><td>项目规则文件、共享配置、可审计日志、CI 集成</td></tr>
+    <tr><td>低成本或本地化</td><td>是否支持本地模型、多模型路由、缓存和 token 控制</td></tr>
+    <tr><td>长期项目协作</td><td>记忆质量、任务恢复、跨会话上下文、对大型仓库的检索能力</td></tr>
+  </table>
+
+  <div class="note"><strong>建议：</strong>不要根据单一排行榜或 star 数选择 agent。最可靠的方法是拿你自己的真实仓库，准备 5-10 个常见任务：修 bug、加测试、改文档、跑失败用例、处理重构冲突。比较工具是否能正确读代码、提出小改动、运行验证并解释结果。</div>
+
+<p>所有这些系统都建立在你在 minGPT 中学到的相同基础之上——下一个 token 预测、上下文管理和工具编排。模型权重只是一个组件；围绕它们的系统决定了现实世界的能力。</p>
+</section>
+<!-- ===== UTILS ===== -->
+<section id="utils">
+  <h2>工具与配置</h2>
+
+  <h3>CfgNode：配置系统</h3>
+  <p>GPT 和 Trainer 都使用 <code>CfgNode</code> 配置系统（类似于 YACS 或 fvcore）。它支持嵌套配置和简单的参数访问。</p>
+<pre><code>from mingpt.utils import CfgNode
+
+config = CfgNode()
+config.model = CfgNode()
+config.model.n_layer = 12
+config.model.n_head = 12</code></pre>
+
+  <h3>set_seed</h3>
+<pre><code>from mingpt.utils import set_seed
+set_seed(42)  # 确定性可复现</code></pre>
+
+  <h3>示例配置：GPT-2</h3>
+<pre><code>model_config = GPT.get_default_config()
+model_config.model_type = 'gpt2'
+# n_layer=12, n_head=12, n_embd=768, block_size=1024, vocab_size=50257</code></pre>
+
+  <h3>示例训练器配置：</h3>
+<pre><code>train_config = Trainer.get_default_config()
+train_config.max_iters = 10000
+train_config.batch_size = 64
+train_config.learning_rate = 3e-4
+train_config.weight_decay = 0.1</code></pre>
+</section>
+<!-- ===== PROJECTS ===== -->
+<section id="projects">
+  <h2>经典项目解析</h2>
+
+  <h3>projects/adder：教 GPT 做加法</h3>
+  <p>这是 minGPT 中最具启发性的例子。它展示了如何从头开始训练 GPT 完成一个算法任务。</p>
+  <p><strong>数据集设计洞察：</strong>答案以逆序编码（最低有效位在前）。这使自回归预测顺序与加法的自然计算顺序（从右到左的进位传播）对齐，大幅降低了学习难度。</p>
+  <p>损失仅在答案部分计算（使用 <code>ignore_index=-1</code>），迫使模型学习算法而不是死记硬背。</p>
+
+  <h3>projects/chargpt：字符级语言模型</h3>
+  <p>在字符级别上对任何文本文件训练 GPT。这是观察语言模型工作的最简单方式：</p>
+  <ul>
+    <li>词汇表：文本中所有唯一字符（比 BPE 小得多）。</li>
+    <li>训练：下一个字符预测。</li>
+    <li>生成：逐字符采样。</li>
+  </ul>
+  <p>尽管简单，chargpt 展现了大语言模型的所有核心模式：上下文学习、连贯生成（到一定程度）以及捕捉文本风格和结构的能力。</p>
+</section>
+<!-- ===== LABS ===== -->
+<section id="labs">
+  <div class="chapter-header">
+    <h2>动手实验</h2>
+    <div class="subtitle">以下实验直接提取自 learning_guide.ipynb + demo.ipynb，包含每个输出含义的详细解释。建议：在每个 cell 执行后阅读解释。</div>
+  </div>
+
+  <h3>实验 1：创建最小的 gpt-nano 并检查其结构</h3>
+  <div class="notebook-cell">
+    <div class="cell-header">
+      <span class="cell-badge">代码示例</span>
+      <span class="cell-title">配置并实例化 GPT</span>
+    </div>
+<pre><code>config = GPT.get_default_config()
+config.model_type = 'gpt-nano'
+config.vocab_size = 50257
+config.block_size = 1024
+config.device = device
+model = GPT(config)
+model.to(device)
+
+total_params = sum(p.numel() for p in model.parameters())
+print(f"总参数量: {total_params:,}")</code></pre>
+    <div class="cell-output">
+Model config...
+number of parameters: 2.55M
+&#10003; 模型已创建！
+   总参数量: 4,958,736
+    </div>
+    <div class="cell-explanation">
+      <strong>关键观察：</strong><br>
+      gpt-nano 只有 3 层，每个位置使用 48 维向量。它有近 500 万参数。<br>
+      但大多数参数花在了"将 5 万个词 ID 翻译成向量"上（嵌入层非常大）。真正进行思考的 3 个 Block 层只占一小部分。<br>
+      <strong>自己试试：</strong>将 <code>model_type = 'gpt-nano'</code> 改为 <code>'gpt-mini'</code> 再运行。你会看到层数从 3 增加到 6，总参数大幅增加。
+    </div>
+  </div>
+
+  <h3>实验 2：前向传播 + 形状追踪（最重要的运行）</h3>
+  <div class="notebook-cell">
+    <div class="cell-header">
+      <span class="cell-badge">代码示例</span>
+      <span class="cell-title">创建随机输入，运行前向传播，打印形状</span>
+    </div>
+<pre><code>x = torch.randint(0, config.vocab_size, (2, 16)).to(device)
+print("输入形状:", x.shape)          # (2, 16)
+with torch.no_grad():
+    output = model(x)
+    logits = output[0] if isinstance(output, tuple) else output
+print("Logits 形状:", logits.shape)  # (2, 16, 50257)</code></pre>
+    <div class="cell-output">
+输入形状: torch.Size([2, 16])
+&#10003; 前向传播完成！
+Logits 形状: torch.Size([2, 16, 50257])
+    </div>
+    <div class="cell-explanation">
+      <strong>关键观察：</strong><br>
+      我们创建了 2 个句子，每个 16 个 token。<br>
+      经过前向传播后，logits 形状是 <code>(2, 16, 50257)</code>。<br>
+      这意味着：对于每个句子的最后一个位置，模型对全部 50,257 个可能的下一词进行评分。<br>
+      分数越高 = 模型认为这个词越可能出现在这里。<br>
+      <strong>记住：</strong>在整个中间层中，形状保持 (batch, seq_len, n_embd)。只有最后的 lm_head 步骤将其转换为 (batch, seq_len, vocab_size)。
+    </div>
+  </div>
+
+  <h3>实验 3：使用前向钩子窥视模型内部</h3>
+  <div class="notebook-cell">
+    <div class="cell-header">
+      <span class="cell-badge">代码示例</span>
+      <span class="cell-title">注册前向钩子，查看嵌入层 / 第一个和最后一个 Block / lm_head 的统计信息</span>
+    </div>
+<pre><code>activations = {}
+def make_hook(name):
+    def hook(m, inp, out):
+        t = out[0] if isinstance(out, tuple) else out
+        activations[name] = t.detach().cpu()
+    return hook
+
+hooks = []
+hooks.append(model.transformer.wte.register_forward_hook(make_hook('embedding')))
+hooks.append(model.transformer.h[0].register_forward_hook(make_hook('first_block')))
+hooks.append(model.transformer.h[-1].register_forward_hook(make_hook('last_block')))
+hooks.append(model.lm_head.register_forward_hook(make_hook('lm_head')))
+
+_ = model(torch.randint(0, 50257, (1, 8)).to(device))
+for n, a in activations.items():
+    print(n, a.shape, '均值/标准差', a.mean().item(), a.std().item())
+for h in hooks: h.remove()</code></pre>
+    <div class="cell-output">
+embedding:  torch.Size([1, 8, 48])  均值 -0.001  标准差 0.019
+first_block:  torch.Size([1, 8, 48])  均值 -0.0007 标准差 0.030
+last_block:   torch.Size([1, 8, 48])  均值 -0.0001 标准差 0.033
+lm_head:      torch.Size([1, 8, 50257]) 均值 ~0  标准差 0.138
+    </div>
+    <div class="cell-explanation">
+      随着层数增加，激活值标准差略微上升（残差连接积累信息）。lm_head 输出方差显著更大，因为它必须区分 5 万个类别。这就是为什么我们在生成时需要温度来"柔化"分布。
+    </div>
+  </div>
+
+  <h3>实验 4：在最小数据集上使用 Trainer 训练（排序/计数模式）</h3>
+  <p>下面演示如何子类化 Dataset 并将其交给 Trainer（灵感来自 demo.ipynb 的 SortDataset 和 learning_guide.ipynb 的简单模式）。</p>
+  <div class="notebook-cell">
+    <div class="cell-header">
+      <span class="cell-badge">代码示例</span>
+      <span class="cell-title">最小数据集 + Trainer 训练 50 步</span>
+    </div>
+<pre><code>from torch.utils.data import Dataset
+class SimplePatternDataset(Dataset):
+    def __init__(self, n=100, seq_len=8):
+        self.n, self.seq_len = n, seq_len
+    def __len__(self): return self.n
+    def __getitem__(self, i):
+        x = torch.arange(self.seq_len) % 5
+        y = (x + 1) % 5
+        return x, y
+
+train_dataset = SimplePatternDataset(100, 8)
+model_config = GPT.get_default_config()
+model_config.model_type = 'gpt-nano'
+model_config.vocab_size = 5
+model_config.block_size = 8
+model_small = GPT(model_config)
+model_small.to(device)
+
+trainer_cfg = Trainer.get_default_config()
+trainer_cfg.max_iters = 50
+trainer_cfg.batch_size = 8
+trainer_cfg.learning_rate = 6e-4
+trainer_cfg.num_workers = 0
+trainer = Trainer(trainer_cfg, model_small, train_dataset)
+trainer.run()
+
+# 训练后生成
+context = torch.tensor([[0]]).to(device)
+print("从 [0] 生成的序列:", model_small.generate(context, 8, do_sample=False)[0].tolist())</code></pre>
+    <div class="cell-output">
+iteration 0: loss 1.6056
+iteration 10: loss 1.2178
+iteration 20: loss 0.9083
+iteration 30: loss 0.6408
+iteration 40: loss 0.4536
+iteration 49: loss 0.3385
+从 [0] 生成的序列: [0, 1, 2, 3, 4, 0, 1, 2, 3]
+    </div>
+    <div class="cell-explanation">
+      <strong>关键观察：</strong><br>
+      模式是：<code>0→1, 1→2, 2→3, 3→4, 4→0</code>。模型仅用 50 步就学会了"计数"！<br>
+      这证明下一个 token 预测目标即使使用极小的模型也能轻松捕获模算术。<br>
+      Loss 从 1.6 下降到 0.34——还不是完美（完美会是 ~0），但显然在学习了。<br>
+      <strong>自己试试：</strong>将模式改为 <code>y = (x * 2) % 5</code>，看看它是否还能学会。乘法比加法需要更多步吗？
+    </div>
+  </div>
+</section>
+<!-- ===== CONCLUSION ===== -->
+<section id="conclusion">
+  <h2>结语与进阶路径</h2>
+
+  <p>你现在已经走完了完整的旅程——从学习的第一性原理，经过序列建模历史，遍历 Transformer 和 GPT 架构的每个组件，到训练、生成以及现代大语言模型的全景。</p>
+
+  <h3>你应该带走什么</h3>
+  <ol>
+    <li>GPT 从根本上很简单：下一个 token 预测 + Transformer 解码器 + 梯度下降。</li>
+    <li>几乎所有的复杂性都来自工程上的规模化，而非架构上的创新。</li>
+    <li>理解核心机制能让你在使用或构建 LLM 时拥有巨大优势。</li>
+    <li>仅有规模还不够——数据质量、架构设计和对齐都很重要。</li>
+  </ol>
+
+  <h3>建议的学习路径</h3>
+  <ul>
+    <li><strong>下一步</strong>：阅读原始论文"Attention Is All You Need"、GPT-2 和 GPT-3 论文。</li>
+    <li><strong>深入</strong>：研究 nanoGPT（Karpathy 的更新版本）的源代码。</li>
+    <li><strong>动手构建</strong>：从零实现你自己的小型 Transformer（在看代码之前先试着自己写）。</li>
+    <li><strong>探索</strong>：微调一个预训练模型（通过 Hugging Face）。</li>
+    <li><strong>保持更新</strong>：关注 LLaMA、Mistral、Mamba 和其他不断演进的架构。</li>
+  </ul>
+</section>
+<!-- ===== REFERENCES ===== -->
+<section id="references">
+  <h2>参考资料</h2>
+  <ul>
+    <li><a href="https://arxiv.org/abs/1706.03762">Attention Is All You Need</a> (Vaswani et al., 2017)</li>
+    <li><a href="https://github.com/karpathy/minGPT">minGPT</a> — Andrej Karpathy</li>
+    <li><a href="https://github.com/karpathy/nanoGPT">nanoGPT</a> — Andrej Karpathy（更新版本）</li>
+    <li><a href="https://d4mucfpksywv.cloudfront.net/better-language-models/language-models.pdf">GPT-2: Language Models are Unsupervised Multitask Learners</a></li>
+    <li><a href="https://arxiv.org/abs/2005.14165">GPT-3: Scaling Laws for Neural Language Models</a></li>
+    <li><a href="https://arxiv.org/abs/2203.15556">Chinchilla: Training Compute-Optimal Large Language Models</a></li>
+    <li><a href="https://arxiv.org/abs/2302.13971">LLaMA: Open and Efficient Foundation Language Models</a></li>
+    <li><a href="https://arxiv.org/abs/2312.00752">Mamba: Linear-Time Sequence Modeling with Selective State Spaces</a></li>
+  </ul>
+</section>
+</main>
+</div>
+<script src="learning_guide.js"></script>
+</body>
+</html>
