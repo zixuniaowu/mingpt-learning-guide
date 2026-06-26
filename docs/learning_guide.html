@@ -1008,6 +1008,64 @@ optimizer.step()                      # 3. 更新：真正拧这些旋钮
   </ul>
   <p>结果就是：常见词（如 "like"）往往是一个 token，不常见的词会被拆开。</p>
 
+  <p><strong>图：一句话从文本到向量的完整路径（看图说话）</strong></p>
+  <p>这张图要解决一个最容易混淆的问题：GPT 不是直接“读英文/中文”，它先把文字变成整数 ID，再把整数 ID 查表变成向量。后面的 Transformer 只处理向量。</p>
+  <div class="diagram" style="background:#252c3d; padding:14px; border-radius:6px;">
+    <svg width="680" height="310" viewBox="0 0 680 310" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="12">
+      <defs>
+        <marker id="tok-flow-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#6c9eff"/></marker>
+      </defs>
+      <rect x="25" y="28" width="130" height="56" rx="8" fill="#111827" stroke="#e8eaf0"/>
+      <text x="90" y="51" text-anchor="middle" fill="#e8eaf0" font-weight="bold">原始文本</text>
+      <text x="90" y="71" text-anchor="middle" fill="#f8fafc">"I like cats"</text>
+
+      <rect x="195" y="28" width="130" height="56" rx="8" fill="#1e3a5f" stroke="#6c9eff"/>
+      <text x="260" y="51" text-anchor="middle" fill="#93c5fd" font-weight="bold">BPE 切分</text>
+      <text x="260" y="71" text-anchor="middle" fill="#dbeafe">I | Ġlike | Ġcats</text>
+
+      <rect x="365" y="28" width="130" height="56" rx="8" fill="#343c52" stroke="#a78bfa"/>
+      <text x="430" y="51" text-anchor="middle" fill="#c4b5fd" font-weight="bold">Token IDs</text>
+      <text x="430" y="71" text-anchor="middle" fill="#ede9fe">[40, 588, 11875]</text>
+
+      <rect x="535" y="28" width="120" height="56" rx="8" fill="#14352a" stroke="#34d399"/>
+      <text x="595" y="51" text-anchor="middle" fill="#86efac" font-weight="bold">查 embedding 表</text>
+      <text x="595" y="71" text-anchor="middle" fill="#dcfce7">(3, n_embd)</text>
+
+      <line x1="155" y1="56" x2="195" y2="56" stroke="#6c9eff" stroke-width="2" marker-end="url(#tok-flow-arrow)"/>
+      <line x1="325" y1="56" x2="365" y2="56" stroke="#6c9eff" stroke-width="2" marker-end="url(#tok-flow-arrow)"/>
+      <line x1="495" y1="56" x2="535" y2="56" stroke="#6c9eff" stroke-width="2" marker-end="url(#tok-flow-arrow)"/>
+
+      <rect x="52" y="135" width="72" height="44" rx="6" fill="#0f172a" stroke="#94a3b8"/>
+      <text x="88" y="154" text-anchor="middle" fill="#cbd5e1">文字</text>
+      <text x="88" y="171" text-anchor="middle" fill="#94a3b8">可读</text>
+      <rect x="214" y="135" width="92" height="44" rx="6" fill="#102a43" stroke="#60a5fa"/>
+      <text x="260" y="154" text-anchor="middle" fill="#bfdbfe">子词 token</text>
+      <text x="260" y="171" text-anchor="middle" fill="#93c5fd">仍可解码</text>
+      <rect x="386" y="135" width="88" height="44" rx="6" fill="#2e225f" stroke="#a78bfa"/>
+      <text x="430" y="154" text-anchor="middle" fill="#ddd6fe">整数编号</text>
+      <text x="430" y="171" text-anchor="middle" fill="#c4b5fd">模型输入</text>
+      <rect x="548" y="128" width="94" height="58" rx="6" fill="#052e1a" stroke="#34d399"/>
+      <text x="595" y="149" text-anchor="middle" fill="#bbf7d0">连续向量</text>
+      <text x="595" y="166" text-anchor="middle" fill="#86efac">模型真正计算</text>
+
+      <line x1="90" y1="84" x2="90" y2="135" stroke="#94a3b8" stroke-dasharray="4,3"/>
+      <line x1="260" y1="84" x2="260" y2="135" stroke="#60a5fa" stroke-dasharray="4,3"/>
+      <line x1="430" y1="84" x2="430" y2="135" stroke="#a78bfa" stroke-dasharray="4,3"/>
+      <line x1="595" y1="84" x2="595" y2="128" stroke="#34d399" stroke-dasharray="4,3"/>
+
+      <rect x="38" y="224" width="292" height="54" rx="8" fill="#111827" stroke="#334155"/>
+      <text x="184" y="246" text-anchor="middle" fill="#f8fafc" font-weight="bold">可逆的部分</text>
+      <text x="184" y="266" text-anchor="middle" fill="#cbd5e1">文本 ⇄ token IDs：分词器能 decode 回文字</text>
+
+      <rect x="350" y="224" width="292" height="54" rx="8" fill="#111827" stroke="#334155"/>
+      <text x="496" y="246" text-anchor="middle" fill="#f8fafc" font-weight="bold">学习出来的部分</text>
+      <text x="496" y="266" text-anchor="middle" fill="#cbd5e1">ID → 向量：embedding 是训练中学到的查表</text>
+
+      <text x="340" y="207" text-anchor="middle" fill="#9aa3b8">关键：token ID 只是编号，本身没有“意思”；意义藏在训练出来的 embedding 和后续网络参数里。</text>
+    </svg>
+  </div>
+  <p class="note">所以看到 <code>[40, 588, 11875]</code> 时，不要把它理解成“模型懂了数字 40 的数学含义”。40 只是词表里的地址；模型用这个地址取出一行向量，然后继续计算。</p>
+
   <div class="notebook-cell">
     <div class="cell-header">
       <span class="cell-badge">Code Example</span>
@@ -1877,6 +1935,87 @@ trainer.set_callback('on_batch_end', on_batch_end)</code></pre>
     <li>append：将新 token 拼接到序列，重复直到达到 max_new_tokens。</li>
   </ol>
   <p>与 BERT（一次性双向理解）不同，GPT 的生成必须是严格自回归的，因此因果掩码不可或缺。生产级 Transformer 通常会维护 KV cache 来避免重复计算历史 token；minGPT 的教学实现更简单，不做 KV cache，而是在每一步重新前向计算当前上下文。</p>
+
+  <p><strong>图：自回归生成是一格一格往右写（看图说话）</strong></p>
+  <p>下面这张图是 <code>generate()</code> 的真正含义：它不是一次吐出整段文字，而是每次只预测一个“下一个 token”。新 token 追加到右边后，又作为下一轮输入的一部分。</p>
+  <div class="diagram" style="background:#252c3d; padding:14px; border-radius:6px;">
+    <svg width="680" height="340" viewBox="0 0 680 340" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="12">
+      <defs>
+        <marker id="gen-step-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#6c9eff"/></marker>
+      </defs>
+      <text x="32" y="30" fill="#e8eaf0" font-weight="bold">Step 0：给 prompt，模型只取最后一个位置的 logits</text>
+      <rect x="42" y="48" width="58" height="38" rx="6" fill="#1e3a5f" stroke="#6c9eff"/><text x="71" y="72" text-anchor="middle" fill="#dbeafe">I</text>
+      <rect x="108" y="48" width="58" height="38" rx="6" fill="#1e3a5f" stroke="#6c9eff"/><text x="137" y="72" text-anchor="middle" fill="#dbeafe">like</text>
+      <rect x="188" y="48" width="120" height="38" rx="6" fill="#343c52" stroke="#a78bfa"/><text x="248" y="72" text-anchor="middle" fill="#ddd6fe">forward</text>
+      <line x1="166" y1="67" x2="188" y2="67" stroke="#6c9eff" marker-end="url(#gen-step-arrow)"/>
+      <rect x="332" y="48" width="110" height="38" rx="6" fill="#2e225f" stroke="#a78bfa"/><text x="387" y="72" text-anchor="middle" fill="#ddd6fe">最后位置 logits</text>
+      <line x1="308" y1="67" x2="332" y2="67" stroke="#a78bfa" marker-end="url(#gen-step-arrow)"/>
+      <rect x="466" y="48" width="72" height="38" rx="6" fill="#14352a" stroke="#34d399"/><text x="502" y="72" text-anchor="middle" fill="#bbf7d0">cats</text>
+      <line x1="442" y1="67" x2="466" y2="67" stroke="#34d399" marker-end="url(#gen-step-arrow)"/>
+      <text x="575" y="72" fill="#86efac">采样/argmax 得到新 token</text>
+
+      <text x="32" y="126" fill="#e8eaf0" font-weight="bold">Step 1：把 cats 追加进去，再预测下一个</text>
+      <rect x="42" y="144" width="58" height="38" rx="6" fill="#1e3a5f" stroke="#6c9eff"/><text x="71" y="168" text-anchor="middle" fill="#dbeafe">I</text>
+      <rect x="108" y="144" width="58" height="38" rx="6" fill="#1e3a5f" stroke="#6c9eff"/><text x="137" y="168" text-anchor="middle" fill="#dbeafe">like</text>
+      <rect x="174" y="144" width="58" height="38" rx="6" fill="#14352a" stroke="#34d399"/><text x="203" y="168" text-anchor="middle" fill="#bbf7d0">cats</text>
+      <rect x="256" y="144" width="120" height="38" rx="6" fill="#343c52" stroke="#a78bfa"/><text x="316" y="168" text-anchor="middle" fill="#ddd6fe">forward</text>
+      <line x1="232" y1="163" x2="256" y2="163" stroke="#6c9eff" marker-end="url(#gen-step-arrow)"/>
+      <rect x="402" y="144" width="72" height="38" rx="6" fill="#14352a" stroke="#34d399"/><text x="438" y="168" text-anchor="middle" fill="#bbf7d0">.</text>
+      <line x1="376" y1="163" x2="402" y2="163" stroke="#34d399" marker-end="url(#gen-step-arrow)"/>
+      <text x="512" y="168" fill="#9aa3b8">现在上下文已经更长</text>
+
+      <text x="32" y="222" fill="#e8eaf0" font-weight="bold">Step 2：继续重复，直到 max_new_tokens 或结束符</text>
+      <rect x="42" y="240" width="58" height="38" rx="6" fill="#1e3a5f" stroke="#6c9eff"/><text x="71" y="264" text-anchor="middle" fill="#dbeafe">I</text>
+      <rect x="108" y="240" width="58" height="38" rx="6" fill="#1e3a5f" stroke="#6c9eff"/><text x="137" y="264" text-anchor="middle" fill="#dbeafe">like</text>
+      <rect x="174" y="240" width="58" height="38" rx="6" fill="#14352a" stroke="#34d399"/><text x="203" y="264" text-anchor="middle" fill="#bbf7d0">cats</text>
+      <rect x="240" y="240" width="58" height="38" rx="6" fill="#14352a" stroke="#34d399"/><text x="269" y="264" text-anchor="middle" fill="#bbf7d0">.</text>
+      <rect x="322" y="240" width="120" height="38" rx="6" fill="#343c52" stroke="#a78bfa"/><text x="382" y="264" text-anchor="middle" fill="#ddd6fe">forward</text>
+      <line x1="298" y1="259" x2="322" y2="259" stroke="#6c9eff" marker-end="url(#gen-step-arrow)"/>
+      <rect x="468" y="240" width="72" height="38" rx="6" fill="#14352a" stroke="#34d399"/><text x="504" y="264" text-anchor="middle" fill="#bbf7d0">&lt;eos&gt;</text>
+      <line x1="442" y1="259" x2="468" y2="259" stroke="#34d399" marker-end="url(#gen-step-arrow)"/>
+
+      <rect x="490" y="108" width="150" height="72" rx="8" fill="#111827" stroke="#334155"/>
+      <text x="565" y="130" text-anchor="middle" fill="#f8fafc" font-weight="bold">读图关键</text>
+      <text x="565" y="150" text-anchor="middle" fill="#cbd5e1">每轮只决定一个 token</text>
+      <text x="565" y="168" text-anchor="middle" fill="#cbd5e1">下轮把它当作已知上下文</text>
+      <text x="340" y="316" text-anchor="middle" fill="#9aa3b8">“生成一段话” = “下一个 token 预测”循环很多次。</text>
+    </svg>
+  </div>
+
+  <p><strong>图：minGPT 重新算历史，生产系统缓存 K/V</strong></p>
+  <p>这张图解释为什么 minGPT 的 <code>generate()</code> 好懂但不够快：教学代码每一步都重新计算整个上下文；生产推理通常会缓存历史 token 的 Key/Value，只为新 token 做增量计算。</p>
+  <div class="diagram" style="background:#252c3d; padding:14px; border-radius:6px;">
+    <svg width="680" height="260" viewBox="0 0 680 260" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="12">
+      <defs>
+        <marker id="kv-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#6c9eff"/></marker>
+      </defs>
+      <rect x="30" y="28" width="285" height="190" rx="10" fill="#111827" stroke="#475569"/>
+      <text x="172" y="55" text-anchor="middle" fill="#f8fafc" font-weight="bold">minGPT 教学实现</text>
+      <text x="172" y="78" text-anchor="middle" fill="#cbd5e1">第 t 步输入：所有历史 token</text>
+      <rect x="70" y="102" width="42" height="34" rx="5" fill="#1e3a5f" stroke="#6c9eff"/><text x="91" y="124" text-anchor="middle" fill="#dbeafe">I</text>
+      <rect x="118" y="102" width="42" height="34" rx="5" fill="#1e3a5f" stroke="#6c9eff"/><text x="139" y="124" text-anchor="middle" fill="#dbeafe">like</text>
+      <rect x="166" y="102" width="42" height="34" rx="5" fill="#1e3a5f" stroke="#6c9eff"/><text x="187" y="124" text-anchor="middle" fill="#dbeafe">cats</text>
+      <rect x="214" y="102" width="42" height="34" rx="5" fill="#1e3a5f" stroke="#6c9eff"/><text x="235" y="124" text-anchor="middle" fill="#dbeafe">.</text>
+      <rect x="92" y="154" width="160" height="38" rx="6" fill="#343c52" stroke="#a78bfa"/>
+      <text x="172" y="178" text-anchor="middle" fill="#ddd6fe">整段重新 forward</text>
+      <line x1="172" y1="136" x2="172" y2="154" stroke="#a78bfa" marker-end="url(#kv-arrow)"/>
+      <text x="172" y="204" text-anchor="middle" fill="#fca5a5">简单、清楚，但历史越长越慢</text>
+
+      <rect x="365" y="28" width="285" height="190" rx="10" fill="#111827" stroke="#475569"/>
+      <text x="507" y="55" text-anchor="middle" fill="#f8fafc" font-weight="bold">生产推理常用 KV cache</text>
+      <text x="507" y="78" text-anchor="middle" fill="#cbd5e1">历史 token 的 K/V 已经存好</text>
+      <rect x="392" y="102" width="132" height="34" rx="6" fill="#0f2f44" stroke="#38bdf8"/>
+      <text x="458" y="124" text-anchor="middle" fill="#bae6fd">cached K/V</text>
+      <rect x="548" y="102" width="42" height="34" rx="5" fill="#14352a" stroke="#34d399"/><text x="569" y="124" text-anchor="middle" fill="#bbf7d0">.</text>
+      <line x1="524" y1="119" x2="548" y2="119" stroke="#34d399" marker-end="url(#kv-arrow)"/>
+      <rect x="428" y="154" width="160" height="38" rx="6" fill="#14352a" stroke="#34d399"/>
+      <text x="508" y="178" text-anchor="middle" fill="#bbf7d0">只增量算新 token</text>
+      <line x1="508" y1="136" x2="508" y2="154" stroke="#34d399" marker-end="url(#kv-arrow)"/>
+      <text x="507" y="204" text-anchor="middle" fill="#86efac">实现更复杂，但长文本快很多</text>
+
+      <text x="340" y="240" text-anchor="middle" fill="#9aa3b8">minGPT 选择左边，是为了让学习者能读懂；不是说真实线上系统都这样做。</text>
+    </svg>
+  </div>
 
   <div class="diagram">
     <svg width="650" height="120" viewBox="0 0 650 120" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="12">

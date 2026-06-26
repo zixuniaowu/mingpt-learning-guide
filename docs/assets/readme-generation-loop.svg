@@ -1,0 +1,44 @@
+<svg width="900" height="300" viewBox="0 0 900 300" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif">
+  <rect width="900" height="300" rx="12" fill="#111827"/>
+  <text x="36" y="42" fill="#f8fafc" font-size="24" font-weight="700">自回归生成：一格一格往右写</text>
+  <text x="36" y="70" fill="#9ca3af" font-size="15">generate() 不是一次写完全文，而是反复做“预测下一个 token”。</text>
+
+  <defs>
+    <marker id="arrow-gen" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0,9 3.5,0 7" fill="#60a5fa"/>
+    </marker>
+  </defs>
+
+  <text x="48" y="116" fill="#e5e7eb" font-size="17" font-weight="700">Step 0</text>
+  <rect x="120" y="94" width="62" height="42" rx="8" fill="#102a43" stroke="#60a5fa"/>
+  <text x="151" y="121" text-anchor="middle" fill="#dbeafe" font-size="17">I</text>
+  <rect x="192" y="94" width="72" height="42" rx="8" fill="#102a43" stroke="#60a5fa"/>
+  <text x="228" y="121" text-anchor="middle" fill="#dbeafe" font-size="17">like</text>
+  <rect x="320" y="94" width="126" height="42" rx="8" fill="#2e225f" stroke="#a78bfa"/>
+  <text x="383" y="121" text-anchor="middle" fill="#ddd6fe" font-size="17">forward</text>
+  <rect x="502" y="94" width="86" height="42" rx="8" fill="#052e1a" stroke="#34d399"/>
+  <text x="545" y="121" text-anchor="middle" fill="#bbf7d0" font-size="17">cats</text>
+  <line x1="264" y1="115" x2="320" y2="115" stroke="#60a5fa" stroke-width="3" marker-end="url(#arrow-gen)"/>
+  <line x1="446" y1="115" x2="502" y2="115" stroke="#34d399" stroke-width="3" marker-end="url(#arrow-gen)"/>
+
+  <text x="48" y="186" fill="#e5e7eb" font-size="17" font-weight="700">Step 1</text>
+  <rect x="120" y="164" width="62" height="42" rx="8" fill="#102a43" stroke="#60a5fa"/>
+  <text x="151" y="191" text-anchor="middle" fill="#dbeafe" font-size="17">I</text>
+  <rect x="192" y="164" width="72" height="42" rx="8" fill="#102a43" stroke="#60a5fa"/>
+  <text x="228" y="191" text-anchor="middle" fill="#dbeafe" font-size="17">like</text>
+  <rect x="274" y="164" width="86" height="42" rx="8" fill="#052e1a" stroke="#34d399"/>
+  <text x="317" y="191" text-anchor="middle" fill="#bbf7d0" font-size="17">cats</text>
+  <rect x="416" y="164" width="126" height="42" rx="8" fill="#2e225f" stroke="#a78bfa"/>
+  <text x="479" y="191" text-anchor="middle" fill="#ddd6fe" font-size="17">forward</text>
+  <rect x="598" y="164" width="62" height="42" rx="8" fill="#052e1a" stroke="#34d399"/>
+  <text x="629" y="191" text-anchor="middle" fill="#bbf7d0" font-size="20">.</text>
+  <line x1="360" y1="185" x2="416" y2="185" stroke="#60a5fa" stroke-width="3" marker-end="url(#arrow-gen)"/>
+  <line x1="542" y1="185" x2="598" y2="185" stroke="#34d399" stroke-width="3" marker-end="url(#arrow-gen)"/>
+
+  <rect x="700" y="98" width="150" height="102" rx="10" fill="#1f2937" stroke="#374151"/>
+  <text x="775" y="126" text-anchor="middle" fill="#f8fafc" font-size="17" font-weight="700">读图关键</text>
+  <text x="775" y="152" text-anchor="middle" fill="#d1d5db" font-size="15">每轮只生成一个</text>
+  <text x="775" y="176" text-anchor="middle" fill="#d1d5db" font-size="15">新 token 变成下轮上下文</text>
+
+  <text x="450" y="258" text-anchor="middle" fill="#9ca3af" font-size="15">minGPT 为了教学简单，会每一步重新 forward；生产系统通常用 KV cache 加速。</text>
+</svg>

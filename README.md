@@ -8,9 +8,9 @@
 docs/learning_guide.html
 ```
 
-## 先看三张图
+## 先看五张图
 
-这三张图是 HTML 里的核心学习方式：先看图，把概念看懂，再运行 Notebook。
+这几张图是 HTML 里的核心学习方式：先看图，把概念看懂，再运行 Notebook。
 
 ### Adder：哪里会产生梯度？
 
@@ -23,6 +23,14 @@ docs/learning_guide.html
 ### GPT 前向传播：从 token IDs 到 logits
 
 ![GPT 前向传播](docs/assets/readme-gpt-flow.svg)
+
+### Tokenization：文字怎么变成模型能算的向量？
+
+![Tokenization 到 embedding 的路径](docs/assets/readme-token-flow.svg)
+
+### Generate：为什么是一格一格生成？
+
+![自回归生成循环](docs/assets/readme-generation-loop.svg)
 
 这份 HTML 是本仓库的主角。它把 minGPT 里最容易卡住的概念拆成三件事：
 
@@ -149,6 +157,15 @@ allow_large_models = False
 ```
 
 它会阻止你不小心下载 `gpt2-xl` 这种数 GB 的大模型。学习生成流程时，用 `gpt2` 就够了。
+
+HTML 里还新增了两张适合反复看的图：
+
+```text
+图：自回归生成是一格一格往右写（看图说话）
+图：minGPT 重新算历史，生产系统缓存 K/V
+```
+
+第一张解释 `generate()` 为什么每次只预测一个 token；第二张解释为什么 minGPT 的教学实现清楚但慢，真实线上推理通常会用 KV cache。
 
 ## 怎么打开这本书
 

@@ -1,0 +1,33 @@
+<svg width="900" height="260" viewBox="0 0 900 260" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif">
+  <rect width="900" height="260" rx="12" fill="#111827"/>
+  <text x="36" y="42" fill="#f8fafc" font-size="24" font-weight="700">一句话如何变成模型能计算的向量</text>
+  <text x="36" y="70" fill="#9ca3af" font-size="15">GPT 不直接读文字；它先分词、变成整数 ID，再查 embedding 表得到向量。</text>
+
+  <defs>
+    <marker id="arrow-token" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0,9 3.5,0 7" fill="#60a5fa"/>
+    </marker>
+  </defs>
+
+  <rect x="42" y="110" width="160" height="74" rx="10" fill="#1f2937" stroke="#e5e7eb"/>
+  <text x="122" y="140" text-anchor="middle" fill="#f8fafc" font-size="17" font-weight="700">原始文本</text>
+  <text x="122" y="166" text-anchor="middle" fill="#d1d5db" font-size="18">"I like cats"</text>
+
+  <rect x="260" y="110" width="160" height="74" rx="10" fill="#102a43" stroke="#60a5fa"/>
+  <text x="340" y="140" text-anchor="middle" fill="#bfdbfe" font-size="17" font-weight="700">BPE token</text>
+  <text x="340" y="166" text-anchor="middle" fill="#dbeafe" font-size="17">I | like | cats</text>
+
+  <rect x="478" y="110" width="170" height="74" rx="10" fill="#2e225f" stroke="#a78bfa"/>
+  <text x="563" y="140" text-anchor="middle" fill="#ddd6fe" font-size="17" font-weight="700">Token IDs</text>
+  <text x="563" y="166" text-anchor="middle" fill="#ede9fe" font-size="17">[40, 588, 11875]</text>
+
+  <rect x="706" y="110" width="152" height="74" rx="10" fill="#052e1a" stroke="#34d399"/>
+  <text x="782" y="140" text-anchor="middle" fill="#bbf7d0" font-size="17" font-weight="700">Embedding</text>
+  <text x="782" y="166" text-anchor="middle" fill="#dcfce7" font-size="17">(3, n_embd)</text>
+
+  <line x1="202" y1="147" x2="260" y2="147" stroke="#60a5fa" stroke-width="3" marker-end="url(#arrow-token)"/>
+  <line x1="420" y1="147" x2="478" y2="147" stroke="#60a5fa" stroke-width="3" marker-end="url(#arrow-token)"/>
+  <line x1="648" y1="147" x2="706" y2="147" stroke="#60a5fa" stroke-width="3" marker-end="url(#arrow-token)"/>
+
+  <text x="450" y="224" text-anchor="middle" fill="#9ca3af" font-size="15">关键：40 不是数学意义上的数字，它只是词表地址；模型用这个地址取出一行向量。</text>
+</svg>
