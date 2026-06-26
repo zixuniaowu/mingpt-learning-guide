@@ -2792,13 +2792,65 @@ for x_t in input_sequence:    # 顺序扫描
     <li>自回归性质意味着错误会累积：一个错误的 token 可能导致完全虚构的叙事。</li>
   </ul>
 
+  <p><strong>图：幻觉不是突然出现的，是错误分支被一步步锁定（看图说话）</strong></p>
+  <p>从 minGPT 的角度看，幻觉就是自回归生成走错了分支。模型每一步都只根据“已经写出来的 token”预测下一个 token；一旦早期 token 错了，后面的上下文就被污染，模型会继续沿着错误故事生成越来越具体的细节。</p>
+  <div class="diagram" style="background:#252c3d; padding:14px; border-radius:6px;">
+    <svg width="680" height="330" viewBox="0 0 680 330" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="12">
+      <defs>
+        <marker id="hall-flow-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#6c9eff"/></marker>
+        <marker id="hall-bad-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#f87171"/></marker>
+      </defs>
+      <rect x="35" y="32" width="150" height="54" rx="8" fill="#111827" stroke="#e8eaf0"/>
+      <text x="110" y="55" text-anchor="middle" fill="#f8fafc" font-weight="bold">用户问题</text>
+      <text x="110" y="75" text-anchor="middle" fill="#cbd5e1">某事实是什么？</text>
+
+      <rect x="238" y="32" width="150" height="54" rx="8" fill="#1e3a5f" stroke="#6c9eff"/>
+      <text x="313" y="55" text-anchor="middle" fill="#bfdbfe" font-weight="bold">下一个 token</text>
+      <text x="313" y="75" text-anchor="middle" fill="#dbeafe">多个候选分支</text>
+
+      <rect x="458" y="18" width="150" height="54" rx="8" fill="#14352a" stroke="#34d399"/>
+      <text x="533" y="41" text-anchor="middle" fill="#bbf7d0" font-weight="bold">正确分支</text>
+      <text x="533" y="61" text-anchor="middle" fill="#dcfce7">1887 → 1889</text>
+
+      <rect x="458" y="102" width="150" height="54" rx="8" fill="#7f1d1d" stroke="#f87171"/>
+      <text x="533" y="125" text-anchor="middle" fill="#fecaca" font-weight="bold">错误分支</text>
+      <text x="533" y="145" text-anchor="middle" fill="#fee2e2">1867</text>
+
+      <line x1="185" y1="59" x2="238" y2="59" stroke="#6c9eff" stroke-width="2" marker-end="url(#hall-flow-arrow)"/>
+      <line x1="388" y1="59" x2="458" y2="45" stroke="#34d399" stroke-width="2" marker-end="url(#hall-flow-arrow)"/>
+      <line x1="388" y1="59" x2="458" y2="129" stroke="#f87171" stroke-width="2" marker-end="url(#hall-bad-arrow)"/>
+
+      <rect x="72" y="212" width="116" height="46" rx="7" fill="#7f1d1d" stroke="#f87171"/>
+      <text x="130" y="232" text-anchor="middle" fill="#fecaca" font-weight="bold">错误 token</text>
+      <text x="130" y="249" text-anchor="middle" fill="#fee2e2">1867</text>
+      <rect x="246" y="212" width="116" height="46" rx="7" fill="#7f1d1d" stroke="#f87171"/>
+      <text x="304" y="232" text-anchor="middle" fill="#fecaca" font-weight="bold">错误上下文</text>
+      <text x="304" y="249" text-anchor="middle" fill="#fee2e2">世界博览会</text>
+      <rect x="420" y="212" width="116" height="46" rx="7" fill="#7f1d1d" stroke="#f87171"/>
+      <text x="478" y="232" text-anchor="middle" fill="#fecaca" font-weight="bold">错误细节</text>
+      <text x="478" y="249" text-anchor="middle" fill="#fee2e2">人物 / 动机</text>
+
+      <line x1="188" y1="235" x2="246" y2="235" stroke="#f87171" stroke-width="2" marker-end="url(#hall-bad-arrow)"/>
+      <line x1="362" y1="235" x2="420" y2="235" stroke="#f87171" stroke-width="2" marker-end="url(#hall-bad-arrow)"/>
+      <path d="M533 156 C533 188, 130 178, 130 212" fill="none" stroke="#f87171" stroke-dasharray="5,4" stroke-width="2" marker-end="url(#hall-bad-arrow)"/>
+
+      <rect x="552" y="194" width="94" height="82" rx="8" fill="#111827" stroke="#334155"/>
+      <text x="599" y="216" text-anchor="middle" fill="#f8fafc" font-weight="bold">读图关键</text>
+      <text x="599" y="237" text-anchor="middle" fill="#cbd5e1">模型会维护</text>
+      <text x="599" y="254" text-anchor="middle" fill="#cbd5e1">前文一致性</text>
+      <text x="599" y="271" text-anchor="middle" fill="#cbd5e1">不等于事实性</text>
+
+      <text x="340" y="306" text-anchor="middle" fill="#9aa3b8">减少幻觉的核心思路：不要只让模型“接着写”，要给它检索证据、约束上下文、验证输出。</text>
+    </svg>
+  </div>
+
   <h3>具体示例：一个错误 Token 如何级联成幻觉</h3>
   <p>试想一个问题："埃菲尔铁塔是什么时候建造的，设计师是谁？"</p>
-  <p>正确答案是："埃菲尔铁塔建于 1887 年至 1889 年，由古斯塔夫·埃菲尔设计。"</p>
+  <p>更准确的答案是："埃菲尔铁塔建于 1887 年至 1889 年，由古斯塔夫·埃菲尔的公司负责建造；核心工程设计来自 Maurice Koechlin 和 Émile Nouguier，建筑外观由 Stephen Sauvestre 参与修订。"</p>
   <p>现在，假设模型生成的前几个 token 出错了：</p>
 
   <div style="font-family:monospace;background:#1a1a2e;padding:1rem;border-radius:8px;line-height:1.6;margin:1rem 0">
-    <div><span style="color:#34d399">正确路径：</span>埃菲尔铁塔建于 <strong>1887 年至 1889 年</strong>，由古斯塔夫·埃菲尔设计。</div>
+    <div><span style="color:#34d399">正确路径：</span>埃菲尔铁塔建于 <strong>1887 年至 1889 年</strong>，由埃菲尔公司负责建造，Koechlin、Nouguier、Sauvestre 参与设计。</div>
     <div style="margin:12px 0;color:#9aa3b8;text-align:center">↓</div>
     <div><span style="color:#f5a623">略微出错：</span>埃菲尔铁塔建于 <strong>1867 年</strong> ...</div>
     <div style="color:#9aa3b8;font-size:0.85rem;margin:4px 0">↑ 仅仅一个 token 错了（1867 而不是 1887）。现在模型必须从这个错误事实继续生成。</div>
@@ -2861,7 +2913,7 @@ for x_t in input_sequence:    # 顺序扫描
   <ul>
     <li><strong>思维链（CoT）</strong>：让模型在回答前逐步推理。这暴露了中间推理过程，减少了跳到错误结论的几率。示例："让我们一步步思考：首先，..."</li>
     <li><strong>自我询问 / 验证</strong>：提示模型明确区分它知道的和不确定的。"只有在确信时才回答。如果不确定，说'我不知道'。"</li>
-    <li><strong>引用要求</strong>：要求模型为事实性声明引用来源。即使引用是编造的（一个已知问题），"假装引用"的行为迫使模型更加具体，这实际上降低了幻觉率。</li>
+    <li><strong>引用要求</strong>：要求模型为事实性声明引用来源，但必须配合给定资料或检索工具使用。单纯要求"给出处"可能让模型编造引用，这会把幻觉包装得更像真的。</li>
     <li><strong>接地提示</strong>："仅基于以下上下文回答问题。如果上下文不包含答案，请说明。"这是 RAG 的基础。</li>
   </ul>
 
@@ -3306,6 +3358,46 @@ train_config.weight_decay = 0.1</code></pre>
 <section id="projects">
   <h2>经典项目解析</h2>
 
+  <p><strong>图：minGPT 三个项目分别训练你哪块能力（看图说话）</strong></p>
+  <p>不要把这些项目当成零散 demo。它们其实是一条学习路线：先用 <code>demo.ipynb</code> 看懂训练循环，再用 <code>projects/adder</code> 看懂监督信号和 mask，最后用 <code>projects/chargpt</code> 看语言建模的完整闭环。</p>
+  <div class="diagram" style="background:#252c3d; padding:14px; border-radius:6px;">
+    <svg width="680" height="300" viewBox="0 0 680 300" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="12">
+      <defs><marker id="proj-flow-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#6c9eff"/></marker></defs>
+      <rect x="34" y="44" width="170" height="176" rx="10" fill="#1e3a5f" stroke="#6c9eff" stroke-width="2"/>
+      <text x="119" y="72" text-anchor="middle" fill="#bfdbfe" font-size="15" font-weight="bold">demo.ipynb</text>
+      <text x="119" y="98" text-anchor="middle" fill="#dbeafe">排序任务</text>
+      <text x="119" y="124" text-anchor="middle" fill="#cbd5e1">看懂 Dataset</text>
+      <text x="119" y="144" text-anchor="middle" fill="#cbd5e1">看懂 Trainer</text>
+      <text x="119" y="164" text-anchor="middle" fill="#cbd5e1">看 loss 下降</text>
+      <rect x="62" y="186" width="114" height="24" rx="5" fill="#0f172a" stroke="#334155"/>
+      <text x="119" y="203" text-anchor="middle" fill="#93c5fd">训练循环入门</text>
+
+      <rect x="255" y="44" width="170" height="176" rx="10" fill="#14352a" stroke="#34d399" stroke-width="2"/>
+      <text x="340" y="72" text-anchor="middle" fill="#bbf7d0" font-size="15" font-weight="bold">projects/adder</text>
+      <text x="340" y="98" text-anchor="middle" fill="#dcfce7">GPT 学加法</text>
+      <text x="340" y="124" text-anchor="middle" fill="#cbd5e1">x/y 右移一格</text>
+      <text x="340" y="144" text-anchor="middle" fill="#cbd5e1">答案反向编码</text>
+      <text x="340" y="164" text-anchor="middle" fill="#cbd5e1">-1 屏蔽 loss</text>
+      <rect x="283" y="186" width="114" height="24" rx="5" fill="#0f172a" stroke="#334155"/>
+      <text x="340" y="203" text-anchor="middle" fill="#86efac">监督信号入门</text>
+
+      <rect x="476" y="44" width="170" height="176" rx="10" fill="#2e225f" stroke="#a78bfa" stroke-width="2"/>
+      <text x="561" y="72" text-anchor="middle" fill="#ddd6fe" font-size="15" font-weight="bold">projects/chargpt</text>
+      <text x="561" y="98" text-anchor="middle" fill="#ede9fe">字符级语言模型</text>
+      <text x="561" y="124" text-anchor="middle" fill="#cbd5e1">字符词表</text>
+      <text x="561" y="144" text-anchor="middle" fill="#cbd5e1">下一个字符预测</text>
+      <text x="561" y="164" text-anchor="middle" fill="#cbd5e1">采样生成文本</text>
+      <rect x="504" y="186" width="114" height="24" rx="5" fill="#0f172a" stroke="#334155"/>
+      <text x="561" y="203" text-anchor="middle" fill="#c4b5fd">语言建模入门</text>
+
+      <line x1="204" y1="132" x2="255" y2="132" stroke="#6c9eff" stroke-width="2" marker-end="url(#proj-flow-arrow)"/>
+      <line x1="425" y1="132" x2="476" y2="132" stroke="#6c9eff" stroke-width="2" marker-end="url(#proj-flow-arrow)"/>
+
+      <rect x="92" y="246" width="496" height="34" rx="7" fill="#111827" stroke="#334155"/>
+      <text x="340" y="268" text-anchor="middle" fill="#cbd5e1">学习顺序：先跑小实验，再解释输出，再回到源码。不要只读代码，也不要只跑 Notebook。</text>
+    </svg>
+  </div>
+
   <h3>projects/adder：教 GPT 做加法</h3>
   <p>这是 minGPT 中最具启发性的例子。它展示了如何从头开始训练 GPT 完成一个算法任务。</p>
   <p><strong>数据集设计洞察：</strong>答案以逆序编码（最低有效位在前）。这使自回归预测顺序与加法的自然计算顺序（从右到左的进位传播）对齐，大幅降低了学习难度。</p>
@@ -3325,6 +3417,42 @@ train_config.weight_decay = 0.1</code></pre>
   <div class="chapter-header">
     <h2>动手实验</h2>
     <div class="subtitle">以下实验直接提取自 learning_guide.ipynb + demo.ipynb，包含每个输出含义的详细解释。建议：在每个 cell 执行后阅读解释。</div>
+  </div>
+
+  <p><strong>图：每个实验都按同一个闭环来读（看图说话）</strong></p>
+  <p>Notebook 不应该只是“点运行”。每个 cell 都要走完整闭环：先预测输出会是什么，再执行，再解释维度和数值，最后改一个参数观察变化。这样才是“可执行的书”。</p>
+  <div class="diagram" style="background:#252c3d; padding:14px; border-radius:6px;">
+    <svg width="680" height="280" viewBox="0 0 680 280" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="12">
+      <defs><marker id="lab-loop-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#6c9eff"/></marker></defs>
+      <circle cx="340" cy="140" r="92" fill="#111827" stroke="#334155" stroke-width="2"/>
+
+      <rect x="278" y="20" width="124" height="46" rx="8" fill="#1e3a5f" stroke="#6c9eff"/>
+      <text x="340" y="40" text-anchor="middle" fill="#bfdbfe" font-weight="bold">1. 先猜</text>
+      <text x="340" y="57" text-anchor="middle" fill="#dbeafe">形状/输出会怎样？</text>
+
+      <rect x="486" y="100" width="124" height="46" rx="8" fill="#14352a" stroke="#34d399"/>
+      <text x="548" y="120" text-anchor="middle" fill="#bbf7d0" font-weight="bold">2. 执行</text>
+      <text x="548" y="137" text-anchor="middle" fill="#dcfce7">运行 cell</text>
+
+      <rect x="278" y="214" width="124" height="46" rx="8" fill="#2e225f" stroke="#a78bfa"/>
+      <text x="340" y="234" text-anchor="middle" fill="#ddd6fe" font-weight="bold">3. 解释</text>
+      <text x="340" y="251" text-anchor="middle" fill="#ede9fe">每一行输出含义</text>
+
+      <rect x="70" y="100" width="124" height="46" rx="8" fill="#2a1f14" stroke="#fb923c"/>
+      <text x="132" y="120" text-anchor="middle" fill="#fed7aa" font-weight="bold">4. 改参数</text>
+      <text x="132" y="137" text-anchor="middle" fill="#ffedd5">block_size / 温度</text>
+
+      <path d="M381 58 C450 60, 500 76, 536 100" fill="none" stroke="#6c9eff" stroke-width="2" marker-end="url(#lab-loop-arrow)"/>
+      <path d="M548 146 C530 198, 460 232, 402 237" fill="none" stroke="#34d399" stroke-width="2" marker-end="url(#lab-loop-arrow)"/>
+      <path d="M278 237 C220 232, 150 198, 132 146" fill="none" stroke="#a78bfa" stroke-width="2" marker-end="url(#lab-loop-arrow)"/>
+      <path d="M132 100 C168 76, 230 60, 299 58" fill="none" stroke="#fb923c" stroke-width="2" marker-end="url(#lab-loop-arrow)"/>
+
+      <text x="340" y="126" text-anchor="middle" fill="#f8fafc" font-size="15" font-weight="bold">读 + 执行 + 理解</text>
+      <text x="340" y="149" text-anchor="middle" fill="#cbd5e1">不是跑完就算</text>
+      <text x="340" y="169" text-anchor="middle" fill="#cbd5e1">而是把输出变成直觉</text>
+
+      <text x="340" y="274" text-anchor="middle" fill="#9aa3b8">如果你只执行 cell，不解释输出，Notebook 只是脚本；解释清楚，它才是书的一页。</text>
+    </svg>
   </div>
 
   <h3>实验 1：创建最小的 gpt-nano 并检查其结构</h3>
