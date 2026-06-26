@@ -1954,6 +1954,43 @@ with torch.no_grad():
     <strong>核心直觉</strong>：预训练 = 学会说任何语言。微调 = 学会说你特定的方言。模型不会"忘记"语言如何运作，只是调整了优先级。
   </div>
 
+  <p><strong>图：微调不是从零学，而是从通用谷底移动到领域谷底（看图说话）</strong></p>
+  <p>下图把微调放回损失地形里理解：从头训练要从随机高地一路走到“会说话”的谷底；微调则从已经很好的预训练点出发，只需要沿着小坡移动到你的任务区域。</p>
+  <div class="diagram" style="background:#252c3d; padding:14px; border-radius:6px;">
+    <svg width="660" height="280" viewBox="0 0 660 280" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="11">
+      <defs>
+        <marker id="ft-arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#fb923c"/></marker>
+        <linearGradient id="ft-land" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#1e293b"/>
+          <stop offset="50%" stop-color="#334155"/>
+          <stop offset="100%" stop-color="#0f172a"/>
+        </linearGradient>
+      </defs>
+      <rect x="20" y="20" width="620" height="220" rx="10" fill="url(#ft-land)" stroke="#475569"/>
+      <path d="M40 190 C90 90, 150 85, 205 165 C250 230, 335 220, 372 142 C420 45, 515 60, 590 150" fill="none" stroke="#64748b" stroke-width="3"/>
+      <path d="M62 185 C105 120, 150 118, 196 165" fill="none" stroke="#60a5fa" stroke-width="3" stroke-dasharray="6,4"/>
+      <path d="M205 165 C255 198, 315 186, 372 142" fill="none" stroke="#fb923c" stroke-width="3" marker-end="url(#ft-arr)"/>
+      <circle cx="62" cy="185" r="8" fill="#f87171" stroke="#fff"/>
+      <text x="62" y="210" text-anchor="middle" fill="#f87171" font-weight="bold">随机初始化</text>
+      <circle cx="205" cy="165" r="9" fill="#60a5fa" stroke="#fff"/>
+      <text x="205" y="147" text-anchor="middle" fill="#93c5fd" font-weight="bold">预训练模型</text>
+      <text x="205" y="182" text-anchor="middle" fill="#bfdbfe">通用语言谷底</text>
+      <circle cx="372" cy="142" r="9" fill="#34d399" stroke="#fff"/>
+      <text x="372" y="122" text-anchor="middle" fill="#86efac" font-weight="bold">微调后模型</text>
+      <text x="372" y="160" text-anchor="middle" fill="#bbf7d0">领域/任务谷底</text>
+      <text x="115" y="93" fill="#60a5fa">从头训练：路很长、数据很多、成本很高</text>
+      <text x="288" y="210" fill="#fb923c">微调：从好起点出发，只移动一小段</text>
+      <rect x="430" y="75" width="170" height="72" rx="8" fill="#111827" stroke="#334155"/>
+      <text x="515" y="98" text-anchor="middle" fill="#f8fafc" font-weight="bold">读图关键</text>
+      <text x="515" y="118" text-anchor="middle" fill="#cbd5e1">预训练学通用能力</text>
+      <text x="515" y="136" text-anchor="middle" fill="#cbd5e1">微调改变输出偏好</text>
+      <text x="30" y="260" fill="#9aa3b8">纵轴直觉：loss 越低越好；横轴直觉：参数空间中的不同位置。真实空间是几亿维，这里只是二维示意。</text>
+    </svg>
+  </div>
+  <div class="note">
+    <strong>看图说话：</strong>微调不是把模型“重新教一遍语言”。它保留预训练学到的大部分通用能力，只让参数朝你的任务分布移动。数据太少或学习率太大时，这个移动会过头，于是出现灾难性遗忘。
+  </div>
+
   <h3>全参数微调（Full Fine-Tuning）</h3>
   <p>更新模型的所有参数。这提供了最大的灵活性——每一层都可以适应新领域。但成本很高：</p>
   <ul>
@@ -1968,6 +2005,44 @@ with torch.no_grad():
   <div class="formula">W' = W + BA，其中 B ∈ ℝ^{d×r}, A ∈ ℝ^{r×k}, r ≪ min(d,k)</div>
   <p>原始的 W 被冻结（不计算梯度）。只有很小的矩阵 A 和 B 被训练。对于一个 4096×4096 层，rank=8 时 LoRA 只训练 65,536 个参数，而不是 16,777,216 个——减少了 256 倍。</p>
   <p>训练时 W 冻结、A/B 更新。推理时可以把它们合并：W_merged = W + BA（零额外成本）。或者分开保存以便快速切换任务。</p>
+
+  <p><strong>图：LoRA 的低秩旁路——冻结大矩阵，只训练小矩阵</strong></p>
+  <p>这张图说明 LoRA 为什么省显存：主干权重 <code>W</code> 不动，梯度只流向低秩矩阵 <code>A</code> 和 <code>B</code>。你不是复制一个新模型，而是给旧模型加一个很小的“方向修正”。</p>
+  <div class="diagram" style="background:#252c3d; padding:14px; border-radius:6px;">
+    <svg width="660" height="260" viewBox="0 0 660 260" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="11">
+      <defs><marker id="lora-arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#6c9eff"/></marker></defs>
+      <rect x="24" y="30" width="90" height="52" rx="8" fill="#1e293b" stroke="#94a3b8"/>
+      <text x="69" y="61" text-anchor="middle" fill="#e2e8f0" font-weight="bold">输入 x</text>
+      <line x1="114" y1="56" x2="160" y2="56" stroke="#6c9eff" stroke-width="2" marker-end="url(#lora-arr)"/>
+
+      <rect x="165" y="24" width="150" height="64" rx="8" fill="#3f2a17" stroke="#fb923c" stroke-width="1.5"/>
+      <text x="240" y="48" text-anchor="middle" fill="#fed7aa" font-weight="bold">冻结主权重 W</text>
+      <text x="240" y="68" text-anchor="middle" fill="#fbbf24">4096 × 4096</text>
+      <text x="240" y="84" text-anchor="middle" fill="#9ca3af" font-size="9">不计算梯度</text>
+
+      <path d="M120 56 C150 132, 170 166, 210 166" stroke="#a78bfa" stroke-width="2" fill="none" marker-end="url(#lora-arr)"/>
+      <rect x="215" y="135" width="86" height="62" rx="8" fill="#1e1b4b" stroke="#a78bfa"/>
+      <text x="258" y="160" text-anchor="middle" fill="#ddd6fe" font-weight="bold">A</text>
+      <text x="258" y="180" text-anchor="middle" fill="#c4b5fd">r × k</text>
+      <line x1="301" y1="166" x2="338" y2="166" stroke="#a78bfa" stroke-width="2" marker-end="url(#lora-arr)"/>
+      <rect x="344" y="135" width="86" height="62" rx="8" fill="#1e1b4b" stroke="#a78bfa"/>
+      <text x="387" y="160" text-anchor="middle" fill="#ddd6fe" font-weight="bold">B</text>
+      <text x="387" y="180" text-anchor="middle" fill="#c4b5fd">d × r</text>
+
+      <line x1="315" y1="56" x2="472" y2="56" stroke="#6c9eff" stroke-width="2" marker-end="url(#lora-arr)"/>
+      <path d="M430 166 C460 166, 468 108, 472 80" stroke="#a78bfa" stroke-width="2" fill="none" marker-end="url(#lora-arr)"/>
+      <circle cx="500" cy="66" r="28" fill="#14352a" stroke="#34d399" stroke-width="2"/>
+      <text x="500" y="71" text-anchor="middle" fill="#bbf7d0" font-size="20" font-weight="bold">+</text>
+      <line x1="528" y1="66" x2="585" y2="66" stroke="#34d399" stroke-width="2" marker-end="url(#lora-arr)"/>
+      <rect x="590" y="40" width="48" height="52" rx="8" fill="#14532d" stroke="#34d399"/>
+      <text x="614" y="71" text-anchor="middle" fill="#dcfce7" font-weight="bold">y</text>
+
+      <rect x="64" y="215" width="540" height="30" rx="6" fill="#111827" stroke="#334155"/>
+      <text x="334" y="235" text-anchor="middle" fill="#cbd5e1">W' = W + BA：大矩阵保留原能力，小矩阵学习任务差异。rank r 越小，训练越省。</text>
+      <text x="258" y="118" text-anchor="middle" fill="#a78bfa" font-size="10">可训练</text>
+      <text x="387" y="118" text-anchor="middle" fill="#a78bfa" font-size="10">可训练</text>
+    </svg>
+  </div>
 
   <p><strong>LoRA 最佳实践</strong>：</p>
   <ul>
@@ -2508,6 +2583,46 @@ for x_t in input_sequence:    # 顺序扫描
 
   <p>我们怎么知道一个 LLM 比另一个更好？在数百个可用的模型中，客观评价对于选择正确的模型和追踪进展至关重要。本节解释评价生态：基准测试、人类评估和自动评分。</p>
 
+  <p><strong>图：评价一个模型不是看一个分数，而是看三条证据链</strong></p>
+  <p>很多排行榜会给你一个总分，但真实选型不能只看总分。下图把评价拆成三条证据链：标准化基准、人类偏好、你的真实任务。三者回答的问题不同，不能互相替代。</p>
+  <div class="diagram" style="background:#252c3d; padding:14px; border-radius:6px;">
+    <svg width="660" height="300" viewBox="0 0 660 300" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="11">
+      <defs><marker id="ev-arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#6c9eff"/></marker></defs>
+      <rect x="245" y="18" width="170" height="48" rx="8" fill="#1e293b" stroke="#e2e8f0" stroke-width="1.5"/>
+      <text x="330" y="47" text-anchor="middle" fill="#f8fafc" font-size="14" font-weight="bold">一个候选模型</text>
+
+      <line x1="330" y1="66" x2="155" y2="105" stroke="#6c9eff" stroke-width="2" marker-end="url(#ev-arr)"/>
+      <line x1="330" y1="66" x2="330" y2="105" stroke="#a78bfa" stroke-width="2" marker-end="url(#ev-arr)"/>
+      <line x1="330" y1="66" x2="505" y2="105" stroke="#34d399" stroke-width="2" marker-end="url(#ev-arr)"/>
+
+      <rect x="45" y="105" width="220" height="86" rx="10" fill="#1e3a8a" stroke="#60a5fa"/>
+      <text x="155" y="130" text-anchor="middle" fill="#bfdbfe" font-weight="bold">1. 标准基准测试</text>
+      <text x="155" y="152" text-anchor="middle" fill="#eff6ff">MMLU / GSM8K / HumanEval</text>
+      <text x="155" y="172" text-anchor="middle" fill="#bfdbfe">回答：能力大概在哪个区间？</text>
+
+      <rect x="275" y="105" width="110" height="86" rx="10" fill="#312e81" stroke="#a78bfa"/>
+      <text x="330" y="130" text-anchor="middle" fill="#ddd6fe" font-weight="bold">2. 人类偏好</text>
+      <text x="330" y="152" text-anchor="middle" fill="#f5f3ff">Arena / A-B</text>
+      <text x="330" y="172" text-anchor="middle" fill="#ddd6fe">回答：人更喜欢谁？</text>
+
+      <rect x="395" y="105" width="220" height="86" rx="10" fill="#14532d" stroke="#4ade80"/>
+      <text x="505" y="130" text-anchor="middle" fill="#bbf7d0" font-weight="bold">3. 你的真实任务</text>
+      <text x="505" y="152" text-anchor="middle" fill="#f0fdf4">你的仓库 / 数据 / 用户问题</text>
+      <text x="505" y="172" text-anchor="middle" fill="#bbf7d0">回答：对我到底好不好用？</text>
+
+      <line x1="155" y1="191" x2="276" y2="236" stroke="#60a5fa" stroke-width="2" marker-end="url(#ev-arr)"/>
+      <line x1="330" y1="191" x2="330" y2="230" stroke="#a78bfa" stroke-width="2" marker-end="url(#ev-arr)"/>
+      <line x1="505" y1="191" x2="384" y2="236" stroke="#34d399" stroke-width="2" marker-end="url(#ev-arr)"/>
+
+      <rect x="230" y="230" width="200" height="48" rx="8" fill="#2a1f14" stroke="#fb923c" stroke-width="1.5"/>
+      <text x="330" y="252" text-anchor="middle" fill="#fed7aa" font-weight="bold">最终选择</text>
+      <text x="330" y="270" text-anchor="middle" fill="#fdba74">不是最高分，而是最适合你的约束</text>
+    </svg>
+  </div>
+  <div class="note">
+    <strong>看图说话：</strong>基准测试适合筛掉明显不够强的模型；Arena 适合看一般用户偏好；但最终一定要回到你的真实任务。一个模型 HumanEval 高，不代表它能稳定改你的仓库；一个模型 Arena 高，也不代表它适合低温、严格事实性任务。
+  </div>
+
   <h3>评价的挑战</h3>
   <p>评估语言模型从根本上比评估传统 ML 模型更难。对于分类模型，你有明确的准确率指标。对于 LLM，"质量"是多维的：事实准确性、推理能力、创造力、指令遵循、安全性、语气等等。没有单一指标能捕捉所有这些方面。</p>
 
@@ -2526,6 +2641,38 @@ for x_t in input_sequence:    # 顺序扫描
 
   <h3>Chatbot Arena：人类偏好排名</h3>
   <p><strong>Chatbot Arena</strong>（由 LMSYS 运营）是目前最有影响力的 LLM 排行榜。它的工作方式与基准测试不同：</p>
+  <p><strong>图：Chatbot Arena 的 Elo 更新过程</strong></p>
+  <p>Arena 的核心不是“模型自己报分”，而是大量用户做盲测对比。每一场 A/B 投票都会轻微推动 Elo 分数，长期累积后形成相对排名。</p>
+  <div class="diagram" style="background:#252c3d; padding:14px; border-radius:6px;">
+    <svg width="660" height="220" viewBox="0 0 660 220" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="11">
+      <defs><marker id="arena-arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#6c9eff"/></marker></defs>
+      <rect x="25" y="55" width="120" height="60" rx="8" fill="#1e293b" stroke="#e2e8f0"/>
+      <text x="85" y="82" text-anchor="middle" fill="#f8fafc" font-weight="bold">用户提示词</text>
+      <text x="85" y="101" text-anchor="middle" fill="#cbd5e1">同一个问题</text>
+      <line x1="145" y1="85" x2="190" y2="85" stroke="#6c9eff" stroke-width="2" marker-end="url(#arena-arr)"/>
+
+      <rect x="200" y="28" width="150" height="58" rx="8" fill="#1e3a8a" stroke="#60a5fa"/>
+      <text x="275" y="53" text-anchor="middle" fill="#bfdbfe" font-weight="bold">匿名模型 A</text>
+      <text x="275" y="72" text-anchor="middle" fill="#eff6ff">生成回答 A</text>
+      <rect x="200" y="105" width="150" height="58" rx="8" fill="#312e81" stroke="#a78bfa"/>
+      <text x="275" y="130" text-anchor="middle" fill="#ddd6fe" font-weight="bold">匿名模型 B</text>
+      <text x="275" y="149" text-anchor="middle" fill="#f5f3ff">生成回答 B</text>
+
+      <line x1="350" y1="57" x2="405" y2="84" stroke="#60a5fa" stroke-width="2" marker-end="url(#arena-arr)"/>
+      <line x1="350" y1="134" x2="405" y2="100" stroke="#a78bfa" stroke-width="2" marker-end="url(#arena-arr)"/>
+      <rect x="415" y="63" width="105" height="58" rx="8" fill="#14532d" stroke="#34d399"/>
+      <text x="467" y="88" text-anchor="middle" fill="#bbf7d0" font-weight="bold">用户投票</text>
+      <text x="467" y="107" text-anchor="middle" fill="#f0fdf4">A / B / 平局</text>
+
+      <line x1="520" y1="92" x2="565" y2="92" stroke="#fb923c" stroke-width="2" marker-end="url(#arena-arr)"/>
+      <rect x="575" y="63" width="65" height="58" rx="8" fill="#2a1f14" stroke="#fb923c"/>
+      <text x="607" y="87" text-anchor="middle" fill="#fed7aa" font-weight="bold">Elo</text>
+      <text x="607" y="107" text-anchor="middle" fill="#fdba74">微调</text>
+
+      <rect x="95" y="176" width="470" height="28" rx="6" fill="#111827" stroke="#334155"/>
+      <text x="330" y="195" text-anchor="middle" fill="#cbd5e1">很多场盲测累积后，Elo 才有意义；单场投票只是一小点证据。</text>
+    </svg>
+  </div>
   <ol>
     <li><strong>盲测 A/B 对比</strong>：用户提交一个提示词。两个匿名模型生成回复。用户投票选择哪个更好（或宣布平局）。</li>
     <li><strong>Elo 评分</strong>：受国际象棋排名启发。每个模型有一个 Elo 分数。当模型 A 击败模型 B 时，A 获得 Elo 积分，B 失去积分。积分变化取决于分差——击败一个弱得多的对手获得很少积分；击败一个强得多的对手获得很多积分。</li>
