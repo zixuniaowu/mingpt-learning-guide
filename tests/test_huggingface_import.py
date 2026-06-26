@@ -1,5 +1,7 @@
 """
 Ensure that we can load huggingface/transformer GPTs into minGPT
+确保我们可以将huggingface/transformer GPTs加载到minGPT中
+huggingface/transformers GPT を minGPT にロードできることを確認します
 """
 
 import unittest
@@ -17,6 +19,7 @@ class TestHuggingFaceImport(unittest.TestCase):
         prompt = "Hello!!!!!!!!!? 🤗, my dog is a little"
 
         # create a minGPT and a huggingface/transformers model
+        # 创建一个minGPT和huggingface/transformers模型 | minGPTとhuggingface/transformersモデルを作成する
         model = GPT.from_pretrained(model_type)
         model_hf = GPT2LMHeadModel.from_pretrained(model_type) # init a HF model too
 

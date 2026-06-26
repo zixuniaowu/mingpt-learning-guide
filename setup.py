@@ -1,3 +1,9 @@
+"""
+Setup script for minGPT package installation.
+minGPT包安装的设置脚本。
+minGPTパッケージのインストール用セットアップスクリプト。
+"""
+
 from setuptools import setup
 
 setup(name='minGPT',

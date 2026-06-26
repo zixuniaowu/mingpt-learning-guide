@@ -11,25 +11,36 @@ import torch
 # -----------------------------------------------------------------------------
 
 def set_seed(seed):
+    # 设置随机种子以确保可重现性
+    # 再現性を確保するためにランダムシードを設定する
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
 
 def setup_logging(config):
-    """ monotonous bookkeeping """
+    """ monotonous bookkeeping 
+    单调的记账工作
+    退屈な簿記作業
+    """
     work_dir = config.system.work_dir
     # create the work directory if it doesn't already exist
+    # 如果工作目录不存在，则创建 | 作業ディレクトリが存在しない場合は作成する
     os.makedirs(work_dir, exist_ok=True)
     # log the args (if any)
+    # 记录参数（如果有的话）| 引数をログに記録する（存在する場合）
     with open(os.path.join(work_dir, 'args.txt'), 'w') as f:
         f.write(' '.join(sys.argv))
     # log the config itself
+    # 记录配置本身 | 設定自体をログに記録する
     with open(os.path.join(work_dir, 'config.json'), 'w') as f:
         f.write(json.dumps(config.to_dict(), indent=4))
 
 class CfgNode:
-    """ a lightweight configuration class inspired by yacs """
+    """ a lightweight configuration class inspired by yacs 
+    受yacs启发的轻量级配置类
+    yacsにインスピレーションを受けた軽量設定クラス
+    """
     # TODO: convert to subclass from a dict like in yacs?
     # TODO: implement freezing to prevent shooting of own foot
     # TODO: additional existence/override checks when reading/writing params?
@@ -67,6 +78,14 @@ class CfgNode:
         The arguments are expected to be in the form of `--arg=value`, and
         the arg can use . to denote nested sub-attributes. Example:
 
+        --model.n_layer=10 --trainer.batch_size=32
+        
+        从预期来自命令行(sys.argv[1:])的字符串列表中更新配置。
+        参数应该是'--arg=value'的形式，参数可以用.表示嵌套的子属性。例子:
+        --model.n_layer=10 --trainer.batch_size=32
+        
+        予想されるコマンドラインから（sys.argv[1:]）を取得する文字列リストから設定を更新します。
+        引数は「--arg=value」の形式であることが予期され、引数は.を使用してネストされたサブ属性を示します。例:
         --model.n_layer=10 --trainer.batch_size=32
         """
         for arg in args:
