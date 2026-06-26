@@ -1399,6 +1399,65 @@ self.register_buffer("bias", torch.tril(torch.ones(block_size, block_size))
   <div class="formula">x ← x + Attention(LayerNorm(x))
 x ← x + FFN(LayerNorm(x))</div>
 
+  <p><strong>图：一个 Block 不改变形状，只改写表示（看图说话）</strong></p>
+  <p>很多人第一次读 Transformer Block 会误以为它像 CNN 一样把尺寸越变越小。GPT 不是这样：在 Block 内部，张量一直保持 <code>(B, T, n_embd)</code>。Attention 负责“跨 token 交流”，MLP 负责“每个 token 自己思考”，残差连接负责保留原信息和稳定梯度。</p>
+  <div class="diagram" style="background:#252c3d; padding:14px; border-radius:6px;">
+    <svg width="680" height="310" viewBox="0 0 680 310" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="12">
+      <defs>
+        <marker id="block-shape-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#6c9eff"/></marker>
+      </defs>
+      <rect x="34" y="40" width="120" height="48" rx="8" fill="#111827" stroke="#e8eaf0"/>
+      <text x="94" y="61" text-anchor="middle" fill="#e8eaf0" font-weight="bold">输入 x</text>
+      <text x="94" y="80" text-anchor="middle" fill="#cbd5e1">(B, T, C)</text>
+
+      <rect x="194" y="40" width="120" height="48" rx="8" fill="#2a1f14" stroke="#f59e0b"/>
+      <text x="254" y="61" text-anchor="middle" fill="#fbbf24" font-weight="bold">LayerNorm</text>
+      <text x="254" y="80" text-anchor="middle" fill="#fed7aa">稳住尺度</text>
+
+      <rect x="354" y="40" width="130" height="48" rx="8" fill="#14352a" stroke="#34d399"/>
+      <text x="419" y="61" text-anchor="middle" fill="#bbf7d0" font-weight="bold">Attention</text>
+      <text x="419" y="80" text-anchor="middle" fill="#86efac">跨位置交流</text>
+
+      <circle cx="542" cy="64" r="22" fill="#343c52" stroke="#a78bfa"/>
+      <text x="542" y="70" text-anchor="middle" fill="#ddd6fe" font-size="20">+</text>
+      <rect x="586" y="40" width="74" height="48" rx="8" fill="#111827" stroke="#a78bfa"/>
+      <text x="623" y="61" text-anchor="middle" fill="#ddd6fe" font-weight="bold">x1</text>
+      <text x="623" y="80" text-anchor="middle" fill="#cbd5e1">(B,T,C)</text>
+
+      <line x1="154" y1="64" x2="194" y2="64" stroke="#6c9eff" stroke-width="2" marker-end="url(#block-shape-arrow)"/>
+      <line x1="314" y1="64" x2="354" y2="64" stroke="#6c9eff" stroke-width="2" marker-end="url(#block-shape-arrow)"/>
+      <line x1="484" y1="64" x2="520" y2="64" stroke="#34d399" stroke-width="2" marker-end="url(#block-shape-arrow)"/>
+      <path d="M94 88 C94 126, 542 126, 542 86" fill="none" stroke="#a78bfa" stroke-dasharray="5,4" stroke-width="2" marker-end="url(#block-shape-arrow)"/>
+      <text x="290" y="119" text-anchor="middle" fill="#c4b5fd">残差：原始 x 直接加回来</text>
+
+      <rect x="34" y="174" width="120" height="48" rx="8" fill="#111827" stroke="#a78bfa"/>
+      <text x="94" y="195" text-anchor="middle" fill="#ddd6fe" font-weight="bold">x1</text>
+      <text x="94" y="214" text-anchor="middle" fill="#cbd5e1">(B, T, C)</text>
+
+      <rect x="194" y="174" width="120" height="48" rx="8" fill="#2a1f14" stroke="#f59e0b"/>
+      <text x="254" y="195" text-anchor="middle" fill="#fbbf24" font-weight="bold">LayerNorm</text>
+      <text x="254" y="214" text-anchor="middle" fill="#fed7aa">再稳一次</text>
+
+      <rect x="354" y="174" width="130" height="48" rx="8" fill="#2e225f" stroke="#a78bfa"/>
+      <text x="419" y="195" text-anchor="middle" fill="#ddd6fe" font-weight="bold">MLP / FFN</text>
+      <text x="419" y="214" text-anchor="middle" fill="#c4b5fd">逐位置变换</text>
+
+      <circle cx="542" cy="198" r="22" fill="#343c52" stroke="#34d399"/>
+      <text x="542" y="204" text-anchor="middle" fill="#bbf7d0" font-size="20">+</text>
+      <rect x="586" y="174" width="74" height="48" rx="8" fill="#111827" stroke="#34d399"/>
+      <text x="623" y="195" text-anchor="middle" fill="#bbf7d0" font-weight="bold">输出</text>
+      <text x="623" y="214" text-anchor="middle" fill="#cbd5e1">(B,T,C)</text>
+
+      <line x1="154" y1="198" x2="194" y2="198" stroke="#6c9eff" stroke-width="2" marker-end="url(#block-shape-arrow)"/>
+      <line x1="314" y1="198" x2="354" y2="198" stroke="#6c9eff" stroke-width="2" marker-end="url(#block-shape-arrow)"/>
+      <line x1="484" y1="198" x2="520" y2="198" stroke="#a78bfa" stroke-width="2" marker-end="url(#block-shape-arrow)"/>
+      <path d="M94 222 C94 260, 542 260, 542 220" fill="none" stroke="#34d399" stroke-dasharray="5,4" stroke-width="2" marker-end="url(#block-shape-arrow)"/>
+      <text x="292" y="253" text-anchor="middle" fill="#86efac">残差：x1 再直接加回来</text>
+
+      <text x="340" y="290" text-anchor="middle" fill="#9aa3b8">读源码时记住一句话：Block 的输入输出形状相同，变化的是每个 token 向量里携带的信息。</text>
+    </svg>
+  </div>
+
   <p>其中 Attention 可以是因果自注意力、交叉注意力或掩码注意力。在 GPT 的纯 decoder 架构中，所有 Block 都使用因果自注意力。</p>
 
   <h3>为什么 Transformer Block 要这样设计？</h3>
@@ -1443,6 +1502,63 @@ x ← x + FFN(LayerNorm(x))</div>
     <li><strong>LM Head</strong>：将 (B, T, n_embd) 投影到 (B, T, vocab_size)，得到每个位置对词表中每个词的分数（logits）。</li>
     <li><strong>（推理时）Softmax + 采样</strong>：logits → softmax → 概率分布 → 采样下一个 token。</li>
   </ol>
+
+  <p><strong>图：把 <code>model.py</code> 里的名字翻译成人话（看图说话）</strong></p>
+  <p>读 minGPT 源码时，最重要的是把变量名和模型部件对上。下面这张图就是 <code>GPT.forward()</code> 的地图：<code>wte</code> 和 <code>wpe</code> 先把整数变成向量，<code>h</code> 是一串 Transformer Block，<code>ln_f</code> 做最终归一化，<code>lm_head</code> 把向量变成词表分数。</p>
+  <div class="diagram" style="background:#252c3d; padding:14px; border-radius:6px;">
+    <svg width="680" height="300" viewBox="0 0 680 300" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="12">
+      <defs>
+        <marker id="gpt-code-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#6c9eff"/></marker>
+      </defs>
+      <rect x="28" y="36" width="104" height="54" rx="8" fill="#111827" stroke="#e8eaf0"/>
+      <text x="80" y="58" text-anchor="middle" fill="#f8fafc" font-weight="bold">idx</text>
+      <text x="80" y="78" text-anchor="middle" fill="#cbd5e1">(B, T)</text>
+
+      <rect x="170" y="20" width="112" height="44" rx="8" fill="#1e3a5f" stroke="#6c9eff"/>
+      <text x="226" y="39" text-anchor="middle" fill="#bfdbfe" font-weight="bold">wte(idx)</text>
+      <text x="226" y="56" text-anchor="middle" fill="#dbeafe">词向量</text>
+      <rect x="170" y="76" width="112" height="44" rx="8" fill="#1e3a5f" stroke="#6c9eff"/>
+      <text x="226" y="95" text-anchor="middle" fill="#bfdbfe" font-weight="bold">wpe(pos)</text>
+      <text x="226" y="112" text-anchor="middle" fill="#dbeafe">位置向量</text>
+
+      <circle cx="330" cy="70" r="23" fill="#343c52" stroke="#a78bfa"/>
+      <text x="330" y="76" text-anchor="middle" fill="#ddd6fe" font-size="20">+</text>
+      <text x="330" y="110" text-anchor="middle" fill="#cbd5e1">x: (B,T,C)</text>
+
+      <rect x="390" y="36" width="128" height="68" rx="8" fill="#14352a" stroke="#34d399"/>
+      <text x="454" y="60" text-anchor="middle" fill="#bbf7d0" font-weight="bold">transformer.h</text>
+      <text x="454" y="80" text-anchor="middle" fill="#86efac">n_layer 个 Block</text>
+      <text x="454" y="98" text-anchor="middle" fill="#cbd5e1">(B,T,C)</text>
+
+      <rect x="555" y="36" width="98" height="68" rx="8" fill="#2a1f14" stroke="#f59e0b"/>
+      <text x="604" y="60" text-anchor="middle" fill="#fbbf24" font-weight="bold">ln_f</text>
+      <text x="604" y="80" text-anchor="middle" fill="#fed7aa">最终稳定</text>
+      <text x="604" y="98" text-anchor="middle" fill="#cbd5e1">(B,T,C)</text>
+
+      <line x1="132" y1="63" x2="170" y2="42" stroke="#6c9eff" stroke-width="2" marker-end="url(#gpt-code-arrow)"/>
+      <line x1="132" y1="63" x2="170" y2="98" stroke="#6c9eff" stroke-width="2" marker-end="url(#gpt-code-arrow)"/>
+      <line x1="282" y1="42" x2="309" y2="62" stroke="#a78bfa" stroke-width="2" marker-end="url(#gpt-code-arrow)"/>
+      <line x1="282" y1="98" x2="309" y2="76" stroke="#a78bfa" stroke-width="2" marker-end="url(#gpt-code-arrow)"/>
+      <line x1="353" y1="70" x2="390" y2="70" stroke="#6c9eff" stroke-width="2" marker-end="url(#gpt-code-arrow)"/>
+      <line x1="518" y1="70" x2="555" y2="70" stroke="#6c9eff" stroke-width="2" marker-end="url(#gpt-code-arrow)"/>
+
+      <rect x="250" y="174" width="148" height="58" rx="8" fill="#2e225f" stroke="#a78bfa"/>
+      <text x="324" y="198" text-anchor="middle" fill="#ddd6fe" font-weight="bold">lm_head</text>
+      <text x="324" y="218" text-anchor="middle" fill="#c4b5fd">C → vocab_size</text>
+      <rect x="455" y="174" width="140" height="58" rx="8" fill="#111827" stroke="#34d399"/>
+      <text x="525" y="198" text-anchor="middle" fill="#bbf7d0" font-weight="bold">logits</text>
+      <text x="525" y="218" text-anchor="middle" fill="#cbd5e1">(B,T,V)</text>
+      <path d="M604 104 C604 150, 324 130, 324 174" fill="none" stroke="#a78bfa" stroke-width="2" marker-end="url(#gpt-code-arrow)"/>
+      <line x1="398" y1="203" x2="455" y2="203" stroke="#34d399" stroke-width="2" marker-end="url(#gpt-code-arrow)"/>
+
+      <rect x="52" y="162" width="150" height="82" rx="8" fill="#111827" stroke="#334155"/>
+      <text x="127" y="186" text-anchor="middle" fill="#f8fafc" font-weight="bold">读源码抓手</text>
+      <text x="127" y="207" text-anchor="middle" fill="#cbd5e1">中间一直是 (B,T,C)</text>
+      <text x="127" y="226" text-anchor="middle" fill="#cbd5e1">只有 lm_head 变成 (B,T,V)</text>
+
+      <text x="340" y="274" text-anchor="middle" fill="#9aa3b8">V 是 vocab_size。训练时每个位置都和 y 比；生成时通常只取最后一个位置的 logits。</text>
+    </svg>
+  </div>
 
   <h3>架构对比：BERT、LLaMA、Mistral 等</h3>
   <table>
@@ -1601,6 +1717,53 @@ x ← x + FFN(LayerNorm(x))</div>
 
   <div class="formula">
     softmax(zᵢ) = exp(zᵢ) / Σⱼ exp(zⱼ)
+  </div>
+
+  <p><strong>图：logits 如何变成概率（看图说话）</strong></p>
+  <p>logits 只是“未归一化分数”，可以是任意实数。Softmax 做的事很具体：先为了数值稳定减去最大值，再取指数把分数变成正数，最后除以总和，让它们加起来等于 1。</p>
+  <div class="diagram" style="background:#252c3d; padding:14px; border-radius:6px;">
+    <svg width="680" height="290" viewBox="0 0 680 290" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="12">
+      <defs>
+        <marker id="softmax-flow-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#6c9eff"/></marker>
+      </defs>
+      <rect x="24" y="42" width="126" height="70" rx="8" fill="#111827" stroke="#e8eaf0"/>
+      <text x="87" y="65" text-anchor="middle" fill="#f8fafc" font-weight="bold">logits</text>
+      <text x="87" y="87" text-anchor="middle" fill="#cbd5e1">cat: 4.0</text>
+      <text x="87" y="104" text-anchor="middle" fill="#cbd5e1">dog: 2.0, car: -1.0</text>
+
+      <rect x="190" y="42" width="126" height="70" rx="8" fill="#1e3a5f" stroke="#6c9eff"/>
+      <text x="253" y="65" text-anchor="middle" fill="#bfdbfe" font-weight="bold">减最大值</text>
+      <text x="253" y="87" text-anchor="middle" fill="#dbeafe">[0, -2, -5]</text>
+      <text x="253" y="104" text-anchor="middle" fill="#93c5fd">概率不变</text>
+
+      <rect x="356" y="42" width="126" height="70" rx="8" fill="#2e225f" stroke="#a78bfa"/>
+      <text x="419" y="65" text-anchor="middle" fill="#ddd6fe" font-weight="bold">取 exp</text>
+      <text x="419" y="87" text-anchor="middle" fill="#ede9fe">[1, .135, .007]</text>
+      <text x="419" y="104" text-anchor="middle" fill="#c4b5fd">全部变正数</text>
+
+      <rect x="522" y="42" width="126" height="70" rx="8" fill="#14352a" stroke="#34d399"/>
+      <text x="585" y="65" text-anchor="middle" fill="#bbf7d0" font-weight="bold">除以总和</text>
+      <text x="585" y="87" text-anchor="middle" fill="#dcfce7">[.876,.118,.006]</text>
+      <text x="585" y="104" text-anchor="middle" fill="#86efac">总和 = 1</text>
+
+      <line x1="150" y1="77" x2="190" y2="77" stroke="#6c9eff" stroke-width="2" marker-end="url(#softmax-flow-arrow)"/>
+      <line x1="316" y1="77" x2="356" y2="77" stroke="#6c9eff" stroke-width="2" marker-end="url(#softmax-flow-arrow)"/>
+      <line x1="482" y1="77" x2="522" y2="77" stroke="#6c9eff" stroke-width="2" marker-end="url(#softmax-flow-arrow)"/>
+
+      <rect x="72" y="170" width="70" height="58" rx="6" fill="#052e1a" stroke="#34d399"/>
+      <rect x="170" y="198" width="70" height="30" rx="6" fill="#052e1a" stroke="#34d399"/>
+      <rect x="268" y="224" width="70" height="4" rx="2" fill="#052e1a" stroke="#34d399"/>
+      <text x="107" y="248" text-anchor="middle" fill="#cbd5e1">cat</text>
+      <text x="205" y="248" text-anchor="middle" fill="#cbd5e1">dog</text>
+      <text x="303" y="248" text-anchor="middle" fill="#cbd5e1">car</text>
+
+      <rect x="408" y="154" width="208" height="82" rx="8" fill="#111827" stroke="#334155"/>
+      <text x="512" y="178" text-anchor="middle" fill="#f8fafc" font-weight="bold">读图关键</text>
+      <text x="512" y="199" text-anchor="middle" fill="#cbd5e1">logit 差距越大，softmax 越尖</text>
+      <text x="512" y="218" text-anchor="middle" fill="#cbd5e1">温度越高，差距被压小，采样更随机</text>
+
+      <text x="340" y="270" text-anchor="middle" fill="#9aa3b8">注意力里的 softmax 是在“选历史 token”；生成里的 softmax 是在“选下一个 token”。数学相同，语义不同。</text>
+    </svg>
   </div>
 
   <h3>交互式 Softmax 可视化</h3>
