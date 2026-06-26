@@ -1,0 +1,48 @@
+<svg width="960" height="360" viewBox="0 0 960 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">GPT forward pass</title>
+  <desc id="desc">Token ids flow through embeddings, Transformer blocks, LayerNorm, lm_head and logits.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#111827"/>
+    </linearGradient>
+    <marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+      <polygon points="0 0,10 4,0 8" fill="#38bdf8"/>
+    </marker>
+  </defs>
+  <rect width="960" height="360" rx="28" fill="url(#bg)"/>
+  <text x="48" y="58" fill="#f8fafc" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="700">GPT 前向传播：一串整数如何变成下一个 token 概率？</text>
+  <text x="48" y="92" fill="#94a3b8" font-family="Segoe UI, Arial, sans-serif" font-size="17">这张图对应 mingpt/model.py 里的 forward()：形状变化比公式更重要。</text>
+
+  <g font-family="Segoe UI, Arial, sans-serif" text-anchor="middle">
+    <g transform="translate(56 148)">
+      <rect width="128" height="72" rx="16" fill="#1e3a8a" stroke="#60a5fa"/>
+      <text x="64" y="31" fill="#eff6ff" font-size="18" font-weight="700">token IDs</text>
+      <text x="64" y="54" fill="#bfdbfe" font-size="13">(B, T)</text>
+    </g>
+    <path d="M196 184 H250" stroke="#38bdf8" stroke-width="4" marker-end="url(#arrow)"/>
+    <g transform="translate(264 128)">
+      <rect width="156" height="112" rx="18" fill="#312e81" stroke="#a78bfa"/>
+      <text x="78" y="34" fill="#f5f3ff" font-size="18" font-weight="700">Embedding</text>
+      <text x="78" y="60" fill="#ddd6fe" font-size="13">token + position</text>
+      <text x="78" y="84" fill="#ddd6fe" font-size="13">(B, T, n_embd)</text>
+    </g>
+    <path d="M432 184 H486" stroke="#38bdf8" stroke-width="4" marker-end="url(#arrow)"/>
+    <g transform="translate(500 112)">
+      <rect width="190" height="144" rx="20" fill="#064e3b" stroke="#34d399"/>
+      <text x="95" y="36" fill="#ecfdf5" font-size="19" font-weight="700">Transformer Blocks</text>
+      <text x="95" y="66" fill="#bbf7d0" font-size="13">Causal Attention</text>
+      <text x="95" y="90" fill="#bbf7d0" font-size="13">MLP + Residual</text>
+      <text x="95" y="116" fill="#bbf7d0" font-size="13">形状保持不变</text>
+    </g>
+    <path d="M702 184 H756" stroke="#38bdf8" stroke-width="4" marker-end="url(#arrow)"/>
+    <g transform="translate(770 128)">
+      <rect width="134" height="112" rx="18" fill="#7c2d12" stroke="#fb923c"/>
+      <text x="67" y="34" fill="#fff7ed" font-size="18" font-weight="700">lm_head</text>
+      <text x="67" y="60" fill="#fed7aa" font-size="13">投到词表</text>
+      <text x="67" y="84" fill="#fed7aa" font-size="13">logits</text>
+    </g>
+  </g>
+
+  <text x="480" y="306" fill="#e2e8f0" font-family="Segoe UI, Arial, sans-serif" font-size="18" text-anchor="middle" font-weight="700">中间层一直是 (batch, seq_len, n_embd)，最后一步才变成 (batch, seq_len, vocab_size)</text>
+</svg>

@@ -1,0 +1,45 @@
+<svg width="960" height="330" viewBox="0 0 960 330" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">One training step data flow</title>
+  <desc id="desc">Dataset, forward pass, loss, backward pass, and optimizer update.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#172033"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+      <polygon points="0 0,10 4,0 8" fill="#60a5fa"/>
+    </marker>
+  </defs>
+  <rect width="960" height="330" rx="28" fill="url(#bg)"/>
+  <text x="48" y="58" fill="#f8fafc" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="700">一次训练到底发生了什么？</text>
+  <text x="48" y="92" fill="#94a3b8" font-family="Segoe UI, Arial, sans-serif" font-size="17">从 Dataset 给出 (x, y)，到 loss.backward() 倒推责任，再到 optimizer.step() 更新参数。</text>
+
+  <g font-family="Segoe UI, Arial, sans-serif" text-anchor="middle">
+    <g transform="translate(48 142)">
+      <rect width="150" height="92" rx="18" fill="#1e3a8a" stroke="#60a5fa"/>
+      <text x="75" y="38" fill="#eff6ff" font-size="19" font-weight="700">Dataset</text>
+      <text x="75" y="65" fill="#bfdbfe" font-size="14">返回 (x, y)</text>
+    </g>
+    <path d="M212 188 H282" stroke="#60a5fa" stroke-width="4" marker-end="url(#arrow)"/>
+    <g transform="translate(296 142)">
+      <rect width="150" height="92" rx="18" fill="#164e63" stroke="#22d3ee"/>
+      <text x="75" y="38" fill="#ecfeff" font-size="19" font-weight="700">Forward</text>
+      <text x="75" y="65" fill="#a5f3fc" font-size="14">model(x) -> logits</text>
+    </g>
+    <path d="M460 188 H530" stroke="#60a5fa" stroke-width="4" marker-end="url(#arrow)"/>
+    <g transform="translate(544 142)">
+      <rect width="150" height="92" rx="18" fill="#14532d" stroke="#4ade80"/>
+      <text x="75" y="38" fill="#f0fdf4" font-size="19" font-weight="700">Loss</text>
+      <text x="75" y="65" fill="#bbf7d0" font-size="14">只看有效 y</text>
+    </g>
+    <path d="M708 188 H778" stroke="#60a5fa" stroke-width="4" marker-end="url(#arrow)"/>
+    <g transform="translate(792 142)">
+      <rect width="120" height="92" rx="18" fill="#7c2d12" stroke="#fb923c"/>
+      <text x="60" y="38" fill="#fff7ed" font-size="19" font-weight="700">Update</text>
+      <text x="60" y="65" fill="#fed7aa" font-size="14">更新参数</text>
+    </g>
+  </g>
+
+  <path d="M620 238 C620 286 372 286 372 238" fill="none" stroke="#a78bfa" stroke-width="3" stroke-dasharray="8 7" marker-end="url(#arrow)"/>
+  <text x="496" y="304" fill="#ddd6fe" font-family="Segoe UI, Arial, sans-serif" font-size="16" text-anchor="middle">loss.backward(): 错误信号从右向左倒推责任</text>
+</svg>

@@ -8,6 +8,22 @@
 docs/learning_guide.html
 ```
 
+## 先看三张图
+
+这三张图是 HTML 里的核心学习方式：先看图，把概念看懂，再运行 Notebook。
+
+### Adder：哪里会产生梯度？
+
+![Adder 数据构造与梯度屏蔽](docs/assets/readme-adder-mask.svg)
+
+### 一次训练：从 Dataset 到参数更新
+
+![一次训练的数据流](docs/assets/readme-training-loop.svg)
+
+### GPT 前向传播：从 token IDs 到 logits
+
+![GPT 前向传播](docs/assets/readme-gpt-flow.svg)
+
 这份 HTML 是本仓库的主角。它把 minGPT 里最容易卡住的概念拆成三件事：
 
 1. **看图说话**：先用图理解数据流、mask、attention、loss、训练循环。
@@ -48,6 +64,8 @@ HTML 里最关键的一张图是：
 
 这是理解 `projects/adder/adder.py` 的入口，也是理解“训练到底训练了哪里”的入口。
 
+HTML 正文里还有更完整的逐行解释：为什么真实代码里没有 `+` 和 `=`，为什么 `x` 要丢掉最后一位，为什么 `y` 要先右移再把前面位置设为 `-1`。
+
 ### 2. Adder 完整训练一步的数据流
 
 ```text
@@ -61,6 +79,8 @@ Dataset -> model(x) -> logits -> loss -> backward -> optimizer.step()
 ```
 
 读完这节，再看 `Trainer.run()` 就不会觉得训练循环是黑盒。
+
+这部分特别适合和 `mingpt/trainer.py` 一起看：你会看到训练不是“魔法”，就是反复执行 forward、loss、backward、step。
 
 ### 3. 损失地形图与反向传播
 
@@ -96,6 +116,8 @@ token IDs
 ```
 
 它适合和 `mingpt/model.py` 的 `forward()` 函数一起看。
+
+如果你只想抓住 GPT 的主干，先记住这一句话：中间层一直保持 `(B, T, n_embd)`，最后 `lm_head` 才把它变成 `(B, T, vocab_size)`。
 
 ### 5. 自注意力机制与交互式注意力小工具
 

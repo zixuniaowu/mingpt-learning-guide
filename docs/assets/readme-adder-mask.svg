@@ -1,0 +1,47 @@
+<svg width="960" height="360" viewBox="0 0 960 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Adder data construction and gradient masking</title>
+  <desc id="desc">A visual explanation of x tokens and y targets with -1 masked positions.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#111827"/>
+      <stop offset="100%" stop-color="#1f2937"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#000" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+  <rect width="960" height="360" rx="28" fill="url(#bg)"/>
+  <text x="48" y="58" fill="#f8fafc" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="700">Adder 看图说话：模型读什么？哪里产生梯度？</text>
+  <text x="48" y="92" fill="#94a3b8" font-family="Segoe UI, Arial, sans-serif" font-size="17">x 是模型看到的序列；y 里红色 -1 被 ignore_index 屏蔽，只有绿色答案位参与 loss。</text>
+
+  <g transform="translate(48 132)" filter="url(#shadow)">
+    <rect x="0" y="0" width="864" height="174" rx="18" fill="#0f172a" stroke="#334155"/>
+    <text x="28" y="43" fill="#93c5fd" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">x（模型看到的内容）</text>
+    <text x="28" y="122" fill="#fca5a5" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">y（正确答案 / loss 目标）</text>
+
+    <g font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">
+      <g transform="translate(250 24)">
+        <rect x="0" y="0" width="64" height="48" rx="10" fill="#1e3a8a" stroke="#60a5fa"/><text x="32" y="32" fill="#eff6ff">8</text>
+        <rect x="74" y="0" width="64" height="48" rx="10" fill="#1e3a8a" stroke="#60a5fa"/><text x="106" y="32" fill="#eff6ff">5</text>
+        <rect x="148" y="0" width="64" height="48" rx="10" fill="#1e3a8a" stroke="#60a5fa"/><text x="180" y="32" fill="#eff6ff">5</text>
+        <rect x="222" y="0" width="64" height="48" rx="10" fill="#1e3a8a" stroke="#60a5fa"/><text x="254" y="32" fill="#eff6ff">0</text>
+        <rect x="296" y="0" width="64" height="48" rx="10" fill="#14532d" stroke="#4ade80"/><text x="328" y="32" fill="#f0fdf4">5</text>
+        <rect x="370" y="0" width="64" height="48" rx="10" fill="#14532d" stroke="#4ade80"/><text x="402" y="32" fill="#f0fdf4">3</text>
+      </g>
+      <g transform="translate(250 103)">
+        <rect x="0" y="0" width="64" height="48" rx="10" fill="#451a1a" stroke="#f87171"/><text x="32" y="32" fill="#fecaca">-1</text>
+        <rect x="74" y="0" width="64" height="48" rx="10" fill="#451a1a" stroke="#f87171"/><text x="106" y="32" fill="#fecaca">-1</text>
+        <rect x="148" y="0" width="64" height="48" rx="10" fill="#451a1a" stroke="#f87171"/><text x="180" y="32" fill="#fecaca">-1</text>
+        <rect x="222" y="0" width="64" height="48" rx="10" fill="#14532d" stroke="#4ade80"/><text x="254" y="32" fill="#f0fdf4">5</text>
+        <rect x="296" y="0" width="64" height="48" rx="10" fill="#14532d" stroke="#4ade80"/><text x="328" y="32" fill="#f0fdf4">3</text>
+        <rect x="370" y="0" width="64" height="48" rx="10" fill="#14532d" stroke="#4ade80"/><text x="402" y="32" fill="#f0fdf4">1</text>
+      </g>
+    </g>
+  </g>
+
+  <g font-family="Segoe UI, Arial, sans-serif" font-size="16">
+    <circle cx="76" cy="330" r="8" fill="#f87171"/><text x="94" y="335" fill="#cbd5e1">红色：loss = 0，梯度 = 0</text>
+    <circle cx="360" cy="330" r="8" fill="#4ade80"/><text x="378" y="335" fill="#cbd5e1">绿色：答案部分真正训练模型</text>
+    <text x="690" y="335" fill="#fbbf24" font-weight="700">-1 决定“哪里学”，反向答案决定“按什么顺序学”。</text>
+  </g>
+</svg>
