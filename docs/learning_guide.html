@@ -2481,7 +2481,7 @@ with torch.no_grad():
   <div class="card" style="margin: 1.2rem 0; border-left: 4px solid var(--accent2);">
     <h4>5. 没有 RoPE（旋转位置编码）</h4>
     <p><strong>minGPT 中：</strong> 使用简单的可学习位置嵌入（wpe），最大长度固定为 block_size。</p>
-    <p><strong>生产影响：</strong> RoPE 允许外推（extrapolation）到更长的序列，并且相对位置编码比绝对位置更符合注意力的需要。所有现代模型（LLaMA、Mistral、Gemma）都使用 RoPE 或其变体。</p>
+    <p><strong>生产影响：</strong> RoPE 允许外推（extrapolation）到更长的序列，并且相对位置编码比绝对位置更符合注意力的需要。许多现代 decoder-only 模型（如 LLaMA、Mistral、Gemma 系列）使用 RoPE 或其变体。</p>
     <p><strong>为什么省略？</strong> 可学习嵌入是最简单的位置编码方式——"添加一个位置向量"比 RoPE 的旋转矩阵更容易理解。</p>
   </div>
 
@@ -2534,6 +2534,47 @@ with torch.no_grad():
   </ul>
 
   <p>这直接指导了 GPT-3、Chinchilla、LLaMA 等模型的训练配置。</p>
+
+  <p><strong>图：Scaling 不是只把模型变大，而是在参数、数据、计算之间配平（看图说话）</strong></p>
+  <p>很多人第一次听 Scaling Laws，会误以为答案就是“参数越多越好”。真正的结论更像资源分配：给定同一笔计算预算，你要决定多少花在更大的模型，多少花在更多训练 token。模型太大但数据太少，会欠训练；数据很多但模型太小，容量不够。</p>
+  <div class="diagram" style="background:#252c3d; padding:14px; border-radius:6px;">
+    <svg width="680" height="310" viewBox="0 0 680 310" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="12">
+      <defs><marker id="scale-balance-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#6c9eff"/></marker></defs>
+      <rect x="35" y="36" width="170" height="170" rx="10" fill="#7f1d1d" stroke="#f87171" stroke-width="2"/>
+      <text x="120" y="64" text-anchor="middle" fill="#fecaca" font-size="15" font-weight="bold">只堆参数</text>
+      <circle cx="120" cy="112" r="34" fill="#991b1b" stroke="#fecaca"/>
+      <text x="120" y="116" text-anchor="middle" fill="#fee2e2" font-weight="bold">N 很大</text>
+      <rect x="78" y="158" width="84" height="24" rx="5" fill="#111827" stroke="#334155"/>
+      <text x="120" y="175" text-anchor="middle" fill="#fca5a5">D 不够</text>
+      <text x="120" y="196" text-anchor="middle" fill="#fecaca">参数没看够数据</text>
+
+      <rect x="255" y="36" width="170" height="170" rx="10" fill="#14352a" stroke="#34d399" stroke-width="2"/>
+      <text x="340" y="64" text-anchor="middle" fill="#bbf7d0" font-size="15" font-weight="bold">计算最优配平</text>
+      <circle cx="312" cy="118" r="28" fill="#166534" stroke="#bbf7d0"/>
+      <text x="312" y="122" text-anchor="middle" fill="#dcfce7" font-weight="bold">N</text>
+      <circle cx="368" cy="118" r="28" fill="#065f46" stroke="#bbf7d0"/>
+      <text x="368" y="122" text-anchor="middle" fill="#dcfce7" font-weight="bold">D</text>
+      <rect x="292" y="158" width="96" height="24" rx="5" fill="#111827" stroke="#334155"/>
+      <text x="340" y="175" text-anchor="middle" fill="#86efac">同预算更低 loss</text>
+      <text x="340" y="196" text-anchor="middle" fill="#bbf7d0">模型和数据一起长</text>
+
+      <rect x="475" y="36" width="170" height="170" rx="10" fill="#2a1f14" stroke="#fb923c" stroke-width="2"/>
+      <text x="560" y="64" text-anchor="middle" fill="#fed7aa" font-size="15" font-weight="bold">只堆数据</text>
+      <rect x="522" y="90" width="76" height="64" rx="8" fill="#92400e" stroke="#fed7aa"/>
+      <text x="560" y="118" text-anchor="middle" fill="#ffedd5" font-weight="bold">D 很大</text>
+      <text x="560" y="138" text-anchor="middle" fill="#ffedd5">N 很小</text>
+      <rect x="512" y="166" width="96" height="24" rx="5" fill="#111827" stroke="#334155"/>
+      <text x="560" y="183" text-anchor="middle" fill="#fdba74">容量不够</text>
+      <text x="560" y="204" text-anchor="middle" fill="#fed7aa">看很多但装不下</text>
+
+      <line x1="205" y1="121" x2="255" y2="121" stroke="#6c9eff" stroke-width="2" marker-end="url(#scale-balance-arrow)"/>
+      <line x1="425" y1="121" x2="475" y2="121" stroke="#6c9eff" stroke-width="2" marker-end="url(#scale-balance-arrow)"/>
+
+      <rect x="82" y="238" width="516" height="42" rx="8" fill="#111827" stroke="#334155"/>
+      <text x="340" y="257" text-anchor="middle" fill="#f8fafc" font-weight="bold">读图关键</text>
+      <text x="340" y="276" text-anchor="middle" fill="#cbd5e1">Scaling Laws 不是口号，而是告诉你：在固定 FLOPs 下，N 和 D 的比例会影响最终 loss。</text>
+    </svg>
+  </div>
 
   <p><strong>图 12.1：Scaling Laws — 损失随计算量可预测地下降</strong></p>
   <p>下图展示了经典的幂律关系：随着计算预算增加，模型损失沿一条平滑、可预测的曲线下降。Chinchilla 的关键发现是：在相同计算预算下，将资源在模型大小和数据之间最优分配，比过度分配给模型大小（如 GPT-3 的做法）能产生更低的损失。</p>
@@ -2608,6 +2649,45 @@ with torch.no_grad():
   <p>自注意力是置换不变的（permutation invariant）。没有位置信息，"I like cats"和"cats like I"对模型来说是一样的。</p>
 
   <p>原始 Transformer 使用正弦位置编码（固定）。GPT 使用可学习的位置嵌入。</p>
+
+  <p><strong>图：没有位置、绝对位置、相对位置到底差在哪（看图说话）</strong></p>
+  <p>位置编码要解决的问题很具体：注意力天然只比较 token 内容，不知道谁在第 1 位、谁在第 3 位。minGPT 的 <code>wpe</code> 是“给第几个位置查一行向量”；RoPE 则把位置信息放进 Q/K 的旋转里，让注意力分数天然带有相对距离。</p>
+  <div class="diagram" style="background:#252c3d; padding:14px; border-radius:6px;">
+    <svg width="680" height="330" viewBox="0 0 680 330" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="12">
+      <defs><marker id="pos-flow-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#6c9eff"/></marker></defs>
+      <rect x="28" y="34" width="188" height="190" rx="10" fill="#7f1d1d" stroke="#f87171" stroke-width="2"/>
+      <text x="122" y="62" text-anchor="middle" fill="#fecaca" font-size="15" font-weight="bold">没有位置编码</text>
+      <rect x="58" y="88" width="44" height="34" rx="6" fill="#111827" stroke="#e5e7eb"/><text x="80" y="110" text-anchor="middle" fill="#f8fafc">I</text>
+      <rect x="108" y="88" width="58" height="34" rx="6" fill="#111827" stroke="#e5e7eb"/><text x="137" y="110" text-anchor="middle" fill="#f8fafc">like</text>
+      <rect x="74" y="140" width="58" height="34" rx="6" fill="#111827" stroke="#e5e7eb"/><text x="103" y="162" text-anchor="middle" fill="#f8fafc">cats</text>
+      <text x="122" y="202" text-anchor="middle" fill="#fee2e2">像一袋 token</text>
+      <text x="122" y="218" text-anchor="middle" fill="#fee2e2">顺序信息丢失</text>
+
+      <rect x="246" y="34" width="188" height="190" rx="10" fill="#1e3a5f" stroke="#6c9eff" stroke-width="2"/>
+      <text x="340" y="62" text-anchor="middle" fill="#bfdbfe" font-size="15" font-weight="bold">minGPT: wpe</text>
+      <rect x="276" y="90" width="40" height="34" rx="6" fill="#111827" stroke="#e5e7eb"/><text x="296" y="112" text-anchor="middle" fill="#f8fafc">I</text>
+      <rect x="322" y="90" width="40" height="34" rx="6" fill="#1e40af" stroke="#93c5fd"/><text x="342" y="112" text-anchor="middle" fill="#dbeafe">p0</text>
+      <text x="364" y="112" fill="#93c5fd">+</text>
+      <rect x="276" y="136" width="54" height="34" rx="6" fill="#111827" stroke="#e5e7eb"/><text x="303" y="158" text-anchor="middle" fill="#f8fafc">like</text>
+      <rect x="336" y="136" width="40" height="34" rx="6" fill="#1e40af" stroke="#93c5fd"/><text x="356" y="158" text-anchor="middle" fill="#dbeafe">p1</text>
+      <text x="340" y="202" text-anchor="middle" fill="#dbeafe">token 向量 + 位置向量</text>
+      <text x="340" y="218" text-anchor="middle" fill="#dbeafe">简单，但长度受 block_size 限制</text>
+
+      <rect x="464" y="34" width="188" height="190" rx="10" fill="#14352a" stroke="#34d399" stroke-width="2"/>
+      <text x="558" y="62" text-anchor="middle" fill="#bbf7d0" font-size="15" font-weight="bold">RoPE: 相对位置</text>
+      <circle cx="530" cy="116" r="34" fill="#052e1a" stroke="#34d399"/>
+      <line x1="530" y1="116" x2="558" y2="92" stroke="#fb923c" stroke-width="2.5" marker-end="url(#pos-flow-arrow)"/>
+      <text x="530" y="166" text-anchor="middle" fill="#dcfce7">q/k 按位置旋转</text>
+      <text x="558" y="202" text-anchor="middle" fill="#dcfce7">点积里带相对距离</text>
+      <text x="558" y="218" text-anchor="middle" fill="#dcfce7">更适合长上下文扩展</text>
+
+      <line x1="216" y1="130" x2="246" y2="130" stroke="#6c9eff" stroke-width="2" marker-end="url(#pos-flow-arrow)"/>
+      <line x1="434" y1="130" x2="464" y2="130" stroke="#6c9eff" stroke-width="2" marker-end="url(#pos-flow-arrow)"/>
+
+      <rect x="70" y="260" width="540" height="38" rx="8" fill="#111827" stroke="#334155"/>
+      <text x="340" y="282" text-anchor="middle" fill="#cbd5e1">读源码时：minGPT 的位置感来自 wpe(pos)；现代长上下文模型常把位置感放进注意力分数本身。</text>
+    </svg>
+  </div>
 
   <h3>从绝对位置到相对位置</h3>
   <ul>
@@ -2717,6 +2797,48 @@ with torch.no_grad():
     <li><strong>幻觉与事实性</strong>：训练目标是"预测最可能的下一个 token"，而非"正确"。这是所有幻觉的根本原因。</li>
     <li><strong>KV cache 瓶颈</strong>：即使使用 GQA，一个 70B 模型在 128k 上下文的 KV cache 也是数百 GB——超出大多数 GPU 的承载能力。</li>
   </ol>
+
+  <p><strong>图：Attention 是“全局查表”，SSM 是“状态接力”（看图说话）</strong></p>
+  <p>Transformer 和 Mamba/SSM 的核心差别不是谁更“聪明”，而是信息怎么流动。Attention 让每个 token 直接看历史所有 token，检索强但代价是 O(T²)。SSM 把历史压进固定大小的状态，长序列便宜，但远距离精确检索更难。</p>
+  <div class="diagram" style="background:#252c3d; padding:14px; border-radius:6px;">
+    <svg width="680" height="330" viewBox="0 0 680 330" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="12">
+      <defs><marker id="beyond-flow-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#6c9eff"/></marker></defs>
+      <rect x="34" y="34" width="290" height="230" rx="12" fill="#1e293b" stroke="#60a5fa" stroke-width="2"/>
+      <text x="179" y="62" text-anchor="middle" fill="#bfdbfe" font-size="15" font-weight="bold">Transformer Attention</text>
+      <text x="179" y="84" text-anchor="middle" fill="#dbeafe">每个位置能直接查历史</text>
+      <g fill="#111827" stroke="#60a5fa">
+        <rect x="70" y="124" width="38" height="32" rx="5"/><rect x="122" y="124" width="38" height="32" rx="5"/><rect x="174" y="124" width="38" height="32" rx="5"/><rect x="226" y="124" width="38" height="32" rx="5"/>
+      </g>
+      <text x="89" y="145" text-anchor="middle" fill="#dbeafe">t0</text>
+      <text x="141" y="145" text-anchor="middle" fill="#dbeafe">t1</text>
+      <text x="193" y="145" text-anchor="middle" fill="#dbeafe">t2</text>
+      <text x="245" y="145" text-anchor="middle" fill="#dbeafe">t3</text>
+      <line x1="245" y1="124" x2="89" y2="156" stroke="#60a5fa" stroke-width="1.8" marker-end="url(#beyond-flow-arrow)"/>
+      <line x1="245" y1="124" x2="141" y2="156" stroke="#60a5fa" stroke-width="1.8" marker-end="url(#beyond-flow-arrow)"/>
+      <line x1="245" y1="124" x2="193" y2="156" stroke="#60a5fa" stroke-width="1.8" marker-end="url(#beyond-flow-arrow)"/>
+      <rect x="78" y="196" width="202" height="32" rx="6" fill="#0f172a" stroke="#334155"/>
+      <text x="179" y="217" text-anchor="middle" fill="#cbd5e1">强检索；注意力矩阵随 T² 增长</text>
+
+      <rect x="356" y="34" width="290" height="230" rx="12" fill="#14352a" stroke="#34d399" stroke-width="2"/>
+      <text x="501" y="62" text-anchor="middle" fill="#bbf7d0" font-size="15" font-weight="bold">SSM / Mamba</text>
+      <text x="501" y="84" text-anchor="middle" fill="#dcfce7">历史压进固定大小状态</text>
+      <g fill="#052e1a" stroke="#34d399">
+        <rect x="390" y="124" width="38" height="32" rx="5"/><rect x="448" y="124" width="38" height="32" rx="5"/><rect x="506" y="124" width="38" height="32" rx="5"/><rect x="564" y="124" width="38" height="32" rx="5"/>
+      </g>
+      <text x="409" y="145" text-anchor="middle" fill="#dcfce7">h0</text>
+      <text x="467" y="145" text-anchor="middle" fill="#dcfce7">h1</text>
+      <text x="525" y="145" text-anchor="middle" fill="#dcfce7">h2</text>
+      <text x="583" y="145" text-anchor="middle" fill="#dcfce7">h3</text>
+      <line x1="428" y1="140" x2="448" y2="140" stroke="#34d399" stroke-width="2" marker-end="url(#beyond-flow-arrow)"/>
+      <line x1="486" y1="140" x2="506" y2="140" stroke="#34d399" stroke-width="2" marker-end="url(#beyond-flow-arrow)"/>
+      <line x1="544" y1="140" x2="564" y2="140" stroke="#34d399" stroke-width="2" marker-end="url(#beyond-flow-arrow)"/>
+      <rect x="400" y="196" width="202" height="32" rx="6" fill="#0f172a" stroke="#334155"/>
+      <text x="501" y="217" text-anchor="middle" fill="#cbd5e1">长序列便宜；精确回看依赖状态是否记住</text>
+
+      <rect x="88" y="286" width="504" height="30" rx="7" fill="#111827" stroke="#334155"/>
+      <text x="340" y="306" text-anchor="middle" fill="#cbd5e1">所以未来方向常是混合：关键层保留注意力检索，大部分层用更便宜的序列状态处理。</text>
+    </svg>
+  </div>
 
   <h3>替代架构：详细对比</h3>
   <table>
