@@ -3521,6 +3521,42 @@ docs/learning_guide.html 第 16 章的当前内容是...
 <section id="utils">
   <h2>工具与配置</h2>
 
+  <p><strong>图：CfgNode 像控制面板，决定模型、训练器和数据如何配合（看图说话）</strong></p>
+  <p>minGPT 的配置不是随便放参数的字典。它把一次实验拆成三组控制旋钮：模型长什么样、训练怎么跑、数据怎么喂。读代码时先看 config，往往比直接跳进 forward 更快定位“这个实验到底在做什么”。</p>
+  <div class="diagram" style="background:#252c3d; padding:14px; border-radius:6px;">
+    <svg width="680" height="300" viewBox="0 0 680 300" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="12">
+      <defs><marker id="cfg-flow-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#6c9eff"/></marker></defs>
+      <rect x="250" y="26" width="180" height="50" rx="9" fill="#111827" stroke="#e8eaf0"/>
+      <text x="340" y="48" text-anchor="middle" fill="#f8fafc" font-weight="bold">CfgNode</text>
+      <text x="340" y="66" text-anchor="middle" fill="#cbd5e1">一次实验的控制面板</text>
+
+      <rect x="44" y="128" width="178" height="94" rx="10" fill="#1e3a5f" stroke="#6c9eff" stroke-width="2"/>
+      <text x="133" y="154" text-anchor="middle" fill="#bfdbfe" font-size="15" font-weight="bold">模型配置</text>
+      <text x="133" y="178" text-anchor="middle" fill="#dbeafe">n_layer / n_head</text>
+      <text x="133" y="197" text-anchor="middle" fill="#dbeafe">n_embd / block_size</text>
+      <text x="133" y="216" text-anchor="middle" fill="#93c5fd">决定 GPT 容量</text>
+
+      <rect x="251" y="128" width="178" height="94" rx="10" fill="#14352a" stroke="#34d399" stroke-width="2"/>
+      <text x="340" y="154" text-anchor="middle" fill="#bbf7d0" font-size="15" font-weight="bold">训练配置</text>
+      <text x="340" y="178" text-anchor="middle" fill="#dcfce7">batch_size / lr</text>
+      <text x="340" y="197" text-anchor="middle" fill="#dcfce7">max_iters / weight_decay</text>
+      <text x="340" y="216" text-anchor="middle" fill="#86efac">决定怎么优化</text>
+
+      <rect x="458" y="128" width="178" height="94" rx="10" fill="#2a1f14" stroke="#fb923c" stroke-width="2"/>
+      <text x="547" y="154" text-anchor="middle" fill="#fed7aa" font-size="15" font-weight="bold">数据配置</text>
+      <text x="547" y="178" text-anchor="middle" fill="#ffedd5">vocab_size</text>
+      <text x="547" y="197" text-anchor="middle" fill="#ffedd5">Dataset 输出 x/y</text>
+      <text x="547" y="216" text-anchor="middle" fill="#fdba74">决定喂什么任务</text>
+
+      <line x1="300" y1="76" x2="133" y2="128" stroke="#6c9eff" stroke-width="2" marker-end="url(#cfg-flow-arrow)"/>
+      <line x1="340" y1="76" x2="340" y2="128" stroke="#34d399" stroke-width="2" marker-end="url(#cfg-flow-arrow)"/>
+      <line x1="380" y1="76" x2="547" y2="128" stroke="#fb923c" stroke-width="2" marker-end="url(#cfg-flow-arrow)"/>
+
+      <rect x="108" y="254" width="464" height="28" rx="7" fill="#111827" stroke="#334155"/>
+      <text x="340" y="273" text-anchor="middle" fill="#cbd5e1">调实验时先问：我改的是模型容量、优化过程，还是数据任务？这能避免盲目改参数。</text>
+    </svg>
+  </div>
+
   <h3>CfgNode：配置系统</h3>
   <p>GPT 和 Trainer 都使用 <code>CfgNode</code> 配置系统（类似于 YACS 或 fvcore）。它支持嵌套配置和简单的参数访问。</p>
 <pre><code>from mingpt.utils import CfgNode
@@ -3798,6 +3834,45 @@ iteration 49: loss 0.3385
   <h2>结语与进阶路径</h2>
 
   <p>你现在已经走完了完整的旅程——从学习的第一性原理，经过序列建模历史，遍历 Transformer 和 GPT 架构的每个组件，到训练、生成以及现代大语言模型的全景。</p>
+
+  <p><strong>图：学完这本书以后，下一步怎么走（看图说话）</strong></p>
+  <p>这本书的目标不是让你背完所有术语，而是让你拿到一张地图。学完 minGPT 后，后续路线大致分成四条：继续读更现代的训练代码、自己实现小模型、做应用层微调/RAG、理解 coding agent 系统。</p>
+  <div class="diagram" style="background:#252c3d; padding:14px; border-radius:6px;">
+    <svg width="680" height="320" viewBox="0 0 680 320" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="12">
+      <defs><marker id="next-flow-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#6c9eff"/></marker></defs>
+      <rect x="250" y="24" width="180" height="48" rx="9" fill="#111827" stroke="#e8eaf0"/>
+      <text x="340" y="46" text-anchor="middle" fill="#f8fafc" font-weight="bold">你现在掌握的核心</text>
+      <text x="340" y="64" text-anchor="middle" fill="#cbd5e1">next token + Transformer + 训练循环</text>
+
+      <rect x="36" y="124" width="140" height="86" rx="10" fill="#1e3a5f" stroke="#6c9eff" stroke-width="2"/>
+      <text x="106" y="148" text-anchor="middle" fill="#bfdbfe" font-weight="bold">读 nanoGPT</text>
+      <text x="106" y="170" text-anchor="middle" fill="#dbeafe">更现代训练脚本</text>
+      <text x="106" y="190" text-anchor="middle" fill="#dbeafe">更接近生产</text>
+
+      <rect x="198" y="124" width="140" height="86" rx="10" fill="#14352a" stroke="#34d399" stroke-width="2"/>
+      <text x="268" y="148" text-anchor="middle" fill="#bbf7d0" font-weight="bold">自己实现</text>
+      <text x="268" y="170" text-anchor="middle" fill="#dcfce7">从零写 Block</text>
+      <text x="268" y="190" text-anchor="middle" fill="#dcfce7">训练小任务</text>
+
+      <rect x="360" y="124" width="140" height="86" rx="10" fill="#2a1f14" stroke="#fb923c" stroke-width="2"/>
+      <text x="430" y="148" text-anchor="middle" fill="#fed7aa" font-weight="bold">做应用</text>
+      <text x="430" y="170" text-anchor="middle" fill="#ffedd5">RAG / 微调</text>
+      <text x="430" y="190" text-anchor="middle" fill="#ffedd5">评测真实任务</text>
+
+      <rect x="522" y="124" width="140" height="86" rx="10" fill="#2e225f" stroke="#a78bfa" stroke-width="2"/>
+      <text x="592" y="148" text-anchor="middle" fill="#ddd6fe" font-weight="bold">理解 Agent</text>
+      <text x="592" y="170" text-anchor="middle" fill="#ede9fe">上下文 / 工具</text>
+      <text x="592" y="190" text-anchor="middle" fill="#ede9fe">验证闭环</text>
+
+      <line x1="295" y1="72" x2="106" y2="124" stroke="#6c9eff" stroke-width="2" marker-end="url(#next-flow-arrow)"/>
+      <line x1="325" y1="72" x2="268" y2="124" stroke="#34d399" stroke-width="2" marker-end="url(#next-flow-arrow)"/>
+      <line x1="355" y1="72" x2="430" y2="124" stroke="#fb923c" stroke-width="2" marker-end="url(#next-flow-arrow)"/>
+      <line x1="385" y1="72" x2="592" y2="124" stroke="#a78bfa" stroke-width="2" marker-end="url(#next-flow-arrow)"/>
+
+      <rect x="96" y="252" width="488" height="36" rx="8" fill="#111827" stroke="#334155"/>
+      <text x="340" y="274" text-anchor="middle" fill="#cbd5e1">建议不要四条路同时走：先选一条，做出一个能运行、能解释、能复验的小作品。</text>
+    </svg>
+  </div>
 
   <h3>你应该带走什么</h3>
   <ol>

@@ -211,6 +211,15 @@ HTML 还把 `demo.ipynb`、`projects/adder`、`projects/chargpt` 和 Notebook �
 
 第一张解释 `number of parameters: 2.55M` 和 `总参数量: 4,958,736` 为什么不是矛盾；第二张解释为什么线性层权重要做 weight decay，而 bias、LayerNorm、embedding 通常不做。
 
+此外，HTML 里还补了：
+
+```text
+图：CfgNode 像控制面板，决定模型、训练器和数据如何配合
+图：学完这本书以后，下一步怎么走
+```
+
+它们把“怎么调实验”和“学完后怎么继续”从文字建议变成了路线图。
+
 ## 怎么打开这本书
 
 最简单方式：
