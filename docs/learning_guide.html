@@ -2102,6 +2102,44 @@ with torch.no_grad():
 
   <p>minGPT 有意保持最小化，但真实世界的生产代码必须处理许多额外问题。下面我们深入分析每一个简化：minGPT 中是什么样的，为什么工业界必须加上它，以及为什么 Karpathy 故意为了教学而省略它。</p>
 
+  <p><strong>图：minGPT 为什么“少”，生产系统为什么“多”（看图说话）</strong></p>
+  <p>先看这张总览图：minGPT 把所有工程复杂度拿掉，只保留最核心的 Transformer 学习闭环；生产系统则在同一条主干周围加上速度、显存、分布式和长上下文优化。</p>
+  <div class="diagram" style="background:#252c3d; padding:14px; border-radius:6px;">
+    <svg width="660" height="320" viewBox="0 0 660 320" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="11">
+      <defs><marker id="impl-arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#6c9eff"/></marker></defs>
+      <rect x="26" y="30" width="275" height="220" rx="12" fill="#1e293b" stroke="#60a5fa" stroke-width="2"/>
+      <text x="164" y="58" text-anchor="middle" fill="#bfdbfe" font-size="16" font-weight="bold">minGPT：教学版</text>
+      <rect x="58" y="82" width="210" height="34" rx="6" fill="#1e3a8a" stroke="#60a5fa"/>
+      <text x="163" y="104" text-anchor="middle" fill="#eff6ff">清晰的 QK^T + mask + softmax</text>
+      <rect x="58" y="128" width="210" height="34" rx="6" fill="#1e3a8a" stroke="#60a5fa"/>
+      <text x="163" y="150" text-anchor="middle" fill="#eff6ff">FP32 / 单 GPU / 普通 backward</text>
+      <rect x="58" y="174" width="210" height="34" rx="6" fill="#1e3a8a" stroke="#60a5fa"/>
+      <text x="163" y="196" text-anchor="middle" fill="#eff6ff">可学习位置嵌入 wpe</text>
+      <text x="164" y="232" text-anchor="middle" fill="#93c5fd">目标：看懂每一行</text>
+
+      <rect x="360" y="30" width="275" height="220" rx="12" fill="#111827" stroke="#34d399" stroke-width="2"/>
+      <text x="498" y="58" text-anchor="middle" fill="#bbf7d0" font-size="16" font-weight="bold">生产 LLM：工程版</text>
+      <rect x="392" y="80" width="210" height="28" rx="6" fill="#14532d" stroke="#34d399"/>
+      <text x="497" y="99" text-anchor="middle" fill="#f0fdf4">FlashAttention：省显存/提速</text>
+      <rect x="392" y="116" width="210" height="28" rx="6" fill="#14532d" stroke="#34d399"/>
+      <text x="497" y="135" text-anchor="middle" fill="#f0fdf4">BF16 + checkpointing</text>
+      <rect x="392" y="152" width="210" height="28" rx="6" fill="#14532d" stroke="#34d399"/>
+      <text x="497" y="171" text-anchor="middle" fill="#f0fdf4">FSDP / ZeRO / 多机训练</text>
+      <rect x="392" y="188" width="210" height="28" rx="6" fill="#14532d" stroke="#34d399"/>
+      <text x="497" y="207" text-anchor="middle" fill="#f0fdf4">RoPE / GQA / KV cache</text>
+      <text x="498" y="232" text-anchor="middle" fill="#86efac">目标：跑得大、快、长</text>
+
+      <path d="M302 140 H356" stroke="#6c9eff" stroke-width="3" marker-end="url(#impl-arr)"/>
+      <text x="330" y="130" text-anchor="middle" fill="#cbd5e1">同一主干</text>
+
+      <rect x="86" y="274" width="490" height="28" rx="6" fill="#0f172a" stroke="#334155"/>
+      <text x="331" y="293" text-anchor="middle" fill="#cbd5e1">先用 minGPT 看懂机制，再理解生产优化是在解决速度、显存、上下文和规模问题。</text>
+    </svg>
+  </div>
+  <div class="note">
+    <strong>看图说话：</strong>不要把“少”理解成“不完整”。minGPT 少掉的是工程负担，不是 Transformer 的核心。真正要学的是左边这条清晰主干；右边每个生产优化，都可以看作在不改变核心目标的前提下，让它更省、更快、更长、更大。
+  </div>
+
   <div class="card" style="margin: 1.2rem 0; border-left: 4px solid var(--accent2);">
     <h4>1. 没有 FlashAttention / memory efficient attention</h4>
     <p><strong>这是什么？</strong><br>
@@ -2810,6 +2848,57 @@ for x_t in input_sequence:    # 顺序扫描
   <p>这说明 Codex 的"长期行为"不是通过一个巨大的系统提示实现的。系统提示很重要，但真正可靠的 agent 还需要文件约定、配置、工具协议、权限系统、hooks 和验证命令共同工作。</p>
 
   <h3>5. 上下文 vs 系统提示：有什么区别？</h3>
+  <p><strong>图：一次 Agent 调用的上下文是怎么拼出来的</strong></p>
+  <p>很多人把“系统提示”和“上下文”混在一起。看这张图：系统提示只是最高优先级规则；真正送进模型的上下文，还包含项目规则、长期记忆、用户当前问题、文件片段和工具输出。</p>
+  <div class="diagram" style="background:#252c3d; padding:14px; border-radius:6px;">
+    <svg width="660" height="330" viewBox="0 0 660 330" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="11">
+      <defs><marker id="ctx-arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#6c9eff"/></marker></defs>
+      <rect x="260" y="18" width="140" height="42" rx="8" fill="#14352a" stroke="#34d399" stroke-width="2"/>
+      <text x="330" y="44" text-anchor="middle" fill="#dcfce7" font-weight="bold">模型调用</text>
+
+      <rect x="42" y="88" width="130" height="50" rx="8" fill="#1e3a8a" stroke="#60a5fa"/>
+      <text x="107" y="111" text-anchor="middle" fill="#bfdbfe" font-weight="bold">系统提示</text>
+      <text x="107" y="129" text-anchor="middle" fill="#eff6ff">最高优先级规则</text>
+
+      <rect x="190" y="88" width="130" height="50" rx="8" fill="#312e81" stroke="#a78bfa"/>
+      <text x="255" y="111" text-anchor="middle" fill="#ddd6fe" font-weight="bold">项目规则</text>
+      <text x="255" y="129" text-anchor="middle" fill="#f5f3ff">AGENTS.md 等</text>
+
+      <rect x="338" y="88" width="130" height="50" rx="8" fill="#2a1f14" stroke="#fb923c"/>
+      <text x="403" y="111" text-anchor="middle" fill="#fed7aa" font-weight="bold">长期记忆</text>
+      <text x="403" y="129" text-anchor="middle" fill="#ffedd5">偏好 / 经验</text>
+
+      <rect x="486" y="88" width="130" height="50" rx="8" fill="#164e63" stroke="#22d3ee"/>
+      <text x="551" y="111" text-anchor="middle" fill="#cffafe" font-weight="bold">用户请求</text>
+      <text x="551" y="129" text-anchor="middle" fill="#ecfeff">当前任务</text>
+
+      <rect x="116" y="170" width="150" height="50" rx="8" fill="#14532d" stroke="#4ade80"/>
+      <text x="191" y="193" text-anchor="middle" fill="#bbf7d0" font-weight="bold">文件片段</text>
+      <text x="191" y="211" text-anchor="middle" fill="#f0fdf4">代码 / 日志 / 文档</text>
+
+      <rect x="394" y="170" width="150" height="50" rx="8" fill="#7f1d1d" stroke="#f87171"/>
+      <text x="469" y="193" text-anchor="middle" fill="#fecaca" font-weight="bold">工具输出</text>
+      <text x="469" y="211" text-anchor="middle" fill="#fee2e2">测试 / shell / 搜索</text>
+
+      <rect x="210" y="258" width="240" height="46" rx="9" fill="#0f172a" stroke="#e2e8f0" stroke-width="1.5"/>
+      <text x="330" y="278" text-anchor="middle" fill="#f8fafc" font-weight="bold">最终上下文包</text>
+      <text x="330" y="296" text-anchor="middle" fill="#cbd5e1">模型只能基于这个包预测下一个 token</text>
+
+      <line x1="107" y1="138" x2="245" y2="258" stroke="#60a5fa" stroke-width="1.8" marker-end="url(#ctx-arr)"/>
+      <line x1="255" y1="138" x2="290" y2="258" stroke="#a78bfa" stroke-width="1.8" marker-end="url(#ctx-arr)"/>
+      <line x1="403" y1="138" x2="370" y2="258" stroke="#fb923c" stroke-width="1.8" marker-end="url(#ctx-arr)"/>
+      <line x1="551" y1="138" x2="415" y2="258" stroke="#22d3ee" stroke-width="1.8" marker-end="url(#ctx-arr)"/>
+      <line x1="191" y1="220" x2="270" y2="258" stroke="#4ade80" stroke-width="1.8" marker-end="url(#ctx-arr)"/>
+      <line x1="469" y1="220" x2="390" y2="258" stroke="#f87171" stroke-width="1.8" marker-end="url(#ctx-arr)"/>
+      <line x1="330" y1="258" x2="330" y2="64" stroke="#e2e8f0" stroke-width="1.5" stroke-dasharray="6,4" marker-end="url(#ctx-arr)"/>
+
+      <text x="330" y="322" text-anchor="middle" fill="#94a3b8">系统提示管“规则”，上下文包管“模型此刻能看到的全部证据”。</text>
+    </svg>
+  </div>
+  <div class="note">
+    <strong>看图说话：</strong>长期记忆不是写进模型权重，也不等于系统提示。它通常先被外部系统检索，再作为上下文材料放进这次模型调用。模型本身仍然只是在这个上下文包上做下一个 token 预测。
+  </div>
+
   <p><strong>上下文</strong>是模型在单次调用中能看到的所有输入材料。它就像"给模型的全部考试材料和参考资料"，可能包括系统提示、开发者指令、用户问题、对话历史、项目文件片段、检索结果、长期记忆、工具输出、错误日志、截图描述等。</p>
   <p><strong>系统提示（system instructions）</strong>是上下文的一个特殊部分，通常放在最高优先级的位置，用于定义模型的身份、边界、风格、安全规则、工具使用原则和回答格式。它不是整个上下文——它是上下文中作为"主规则"的层级。</p>
   <table>
