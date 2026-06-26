@@ -200,6 +200,17 @@ HTML 还把 `demo.ipynb`、`projects/adder`、`projects/chargpt` 和 Notebook �
 
 这几张图对应从 minGPT 走向现代 LLM 的关键问题：为什么不能只堆参数、为什么 GPT 需要位置感、为什么长上下文会卡在注意力和 KV cache 上。
 
+### 10. 参数量与优化器：把数字讲清楚
+
+中段章节补了两个很容易被忽略但非常关键的机制：
+
+```text
+图：为什么 gpt-nano 的“主体很小”，总参数却接近 500 万
+图：为什么优化器要把参数分成 decay / no_decay
+```
+
+第一张解释 `number of parameters: 2.55M` 和 `总参数量: 4,958,736` 为什么不是矛盾；第二张解释为什么线性层权重要做 weight decay，而 bias、LayerNorm、embedding 通常不做。
+
 ## 怎么打开这本书
 
 最简单方式：

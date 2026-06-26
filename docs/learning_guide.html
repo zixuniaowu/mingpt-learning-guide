@@ -1634,6 +1634,37 @@ x ← x + FFN(LayerNorm(x))</div>
   <h3>优化器配置（configure_optimizers）</h3>
   <p>minGPT 将参数分为两组：<code>decay</code>（线性层权重，应用权重衰减）和 <code>no_decay</code>（偏置、LayerNorm 参数、嵌入权重）。这种分离是 GPT 训练的标准实践——对偏置和归一化参数应用正则化没有意义，因为它们的维度很低或作用不同。</p>
 
+  <p><strong>图：为什么优化器要把参数分成 decay / no_decay（看图说话）</strong></p>
+  <p>权重衰减不是“给所有参数都加惩罚”。它主要约束大矩阵权重，防止模型把线性层权重长得过大；但偏置、LayerNorm 的缩放/平移、Embedding 表如果也强行衰减，通常没有好处，反而会干扰表示学习。</p>
+  <div class="diagram" style="background:#252c3d; padding:14px; border-radius:6px;">
+    <svg width="680" height="300" viewBox="0 0 680 300" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="12">
+      <defs><marker id="opt-flow-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#6c9eff"/></marker></defs>
+      <rect x="244" y="28" width="192" height="48" rx="8" fill="#111827" stroke="#e8eaf0"/>
+      <text x="340" y="50" text-anchor="middle" fill="#f8fafc" font-weight="bold">model.named_parameters()</text>
+      <text x="340" y="68" text-anchor="middle" fill="#cbd5e1">遍历所有参数名和张量</text>
+
+      <rect x="54" y="126" width="250" height="104" rx="10" fill="#14352a" stroke="#34d399" stroke-width="2"/>
+      <text x="179" y="152" text-anchor="middle" fill="#bbf7d0" font-size="15" font-weight="bold">decay 组</text>
+      <text x="179" y="176" text-anchor="middle" fill="#dcfce7">Linear.weight</text>
+      <text x="179" y="196" text-anchor="middle" fill="#dcfce7">Attention / MLP 大矩阵</text>
+      <rect x="106" y="208" width="146" height="22" rx="5" fill="#0f172a" stroke="#334155"/>
+      <text x="179" y="224" text-anchor="middle" fill="#86efac">weight_decay = 0.1</text>
+
+      <rect x="376" y="126" width="250" height="104" rx="10" fill="#2a1f14" stroke="#fb923c" stroke-width="2"/>
+      <text x="501" y="152" text-anchor="middle" fill="#fed7aa" font-size="15" font-weight="bold">no_decay 组</text>
+      <text x="501" y="176" text-anchor="middle" fill="#ffedd5">bias / LayerNorm</text>
+      <text x="501" y="196" text-anchor="middle" fill="#ffedd5">wte / wpe embedding</text>
+      <rect x="428" y="208" width="146" height="22" rx="5" fill="#0f172a" stroke="#334155"/>
+      <text x="501" y="224" text-anchor="middle" fill="#fdba74">weight_decay = 0</text>
+
+      <line x1="300" y1="76" x2="179" y2="126" stroke="#34d399" stroke-width="2" marker-end="url(#opt-flow-arrow)"/>
+      <line x1="380" y1="76" x2="501" y2="126" stroke="#fb923c" stroke-width="2" marker-end="url(#opt-flow-arrow)"/>
+
+      <rect x="118" y="258" width="444" height="26" rx="7" fill="#111827" stroke="#334155"/>
+      <text x="340" y="276" text-anchor="middle" fill="#cbd5e1">直觉：大矩阵需要正则化；偏置、归一化和查表参数更像校准/表示，不适合被统一拉小。</text>
+    </svg>
+  </div>
+
   <h3>加载预训练权重（from_pretrained）</h3>
   <p>minGPT 支持从 Hugging Face 加载 GPT-2 预训练权重。这需要在两个框架之间映射参数名称。虽然 minGPT 本身通常只用于从头训练，但这个功能让你可以加载一个完整的 GPT-2 并用 generate.ipynb 体验文本生成。</p>
   <div class="warning">
@@ -2513,6 +2544,45 @@ with torch.no_grad():
   <div class="note">
     表中参数量估算：≈ 12 · n_layer · n_embd²（主要是 Transformer Block，不含词嵌入和 lm_head）。
     真实总参数还取决于 vocab_size 和 block_size；例如 gpt-nano 如果使用 GPT-2 词表 vocab_size=50257，总参数会接近 500 万。
+  </div>
+
+  <p><strong>图：为什么 gpt-nano 的“主体很小”，总参数却接近 500 万（看图说话）</strong></p>
+  <p>参数量最容易误读。表里的 <code>~0.1M</code> 主要是在估算 Transformer Block 主体；但如果词表使用 GPT-2 的 50,257 个 token，词嵌入 <code>wte</code> 和输出头 <code>lm_head</code> 都会变大。也就是说，小模型的大部分参数不是“思考层”，而是“词表查表”和“词表打分”。</p>
+  <div class="diagram" style="background:#252c3d; padding:14px; border-radius:6px;">
+    <svg width="680" height="310" viewBox="0 0 680 310" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="12">
+      <rect x="42" y="42" width="596" height="48" rx="8" fill="#111827" stroke="#334155"/>
+      <text x="340" y="64" text-anchor="middle" fill="#f8fafc" font-weight="bold">gpt-nano + GPT-2 词表：总参数约 4.96M</text>
+      <text x="340" y="82" text-anchor="middle" fill="#cbd5e1">n_layer=3, n_head=3, n_embd=48, vocab_size=50257</text>
+
+      <rect x="60" y="132" width="260" height="48" rx="8" fill="#1e3a5f" stroke="#6c9eff"/>
+      <text x="190" y="154" text-anchor="middle" fill="#bfdbfe" font-weight="bold">wte: token embedding</text>
+      <text x="190" y="172" text-anchor="middle" fill="#dbeafe">50257 × 48 ≈ 2.41M</text>
+
+      <rect x="60" y="190" width="36" height="48" rx="8" fill="#14352a" stroke="#34d399"/>
+      <text x="78" y="211" text-anchor="middle" fill="#bbf7d0" font-size="10">wpe</text>
+      <text x="78" y="228" text-anchor="middle" fill="#dcfce7" font-size="10">0.05M</text>
+
+      <rect x="104" y="190" width="46" height="48" rx="8" fill="#2e225f" stroke="#a78bfa"/>
+      <text x="127" y="211" text-anchor="middle" fill="#ddd6fe" font-size="10">Block</text>
+      <text x="127" y="228" text-anchor="middle" fill="#ede9fe" font-size="10">~0.1M</text>
+
+      <rect x="158" y="190" width="162" height="48" rx="8" fill="#2a1f14" stroke="#fb923c"/>
+      <text x="239" y="211" text-anchor="middle" fill="#fed7aa" font-weight="bold">其余 transformer</text>
+      <text x="239" y="229" text-anchor="middle" fill="#ffedd5">LayerNorm / bias 等</text>
+
+      <rect x="360" y="132" width="260" height="48" rx="8" fill="#7f1d1d" stroke="#f87171"/>
+      <text x="490" y="154" text-anchor="middle" fill="#fecaca" font-weight="bold">lm_head: 词表打分</text>
+      <text x="490" y="172" text-anchor="middle" fill="#fee2e2">48 × 50257 ≈ 2.41M</text>
+
+      <rect x="360" y="202" width="260" height="36" rx="8" fill="#111827" stroke="#334155"/>
+      <text x="490" y="225" text-anchor="middle" fill="#cbd5e1">把每个位置的 48 维向量投到 50257 个 logits</text>
+
+      <rect x="80" y="262" width="520" height="30" rx="7" fill="#111827" stroke="#334155"/>
+      <text x="340" y="282" text-anchor="middle" fill="#cbd5e1">所以：模型主体可以很小，但只要词表很大，embedding 和 lm_head 就会占掉大头。</text>
+    </svg>
+  </div>
+  <div class="note">
+    <strong>读输出时别混淆：</strong><code>model.py</code> 初始化时打印的 <code>number of parameters</code> 统计的是 <code>self.transformer</code>，不包含 <code>lm_head</code>；你手动 <code>sum(p.numel() for p in model.parameters())</code> 会把 <code>lm_head</code> 也算进去，所以数字更大。
   </div>
 </section>
 <!-- ===== SCALING LAWS ===== -->
@@ -3603,6 +3673,7 @@ number of parameters: 2.55M
       <strong>关键观察：</strong><br>
       gpt-nano 只有 3 层，每个位置使用 48 维向量。它有近 500 万参数。<br>
       但大多数参数花在了"将 5 万个词 ID 翻译成向量"上（嵌入层非常大）。真正进行思考的 3 个 Block 层只占一小部分。<br>
+      <strong>为什么上面有两个参数量？</strong> <code>number of parameters: 2.55M</code> 是 minGPT 初始化时打印的 transformer 参数，不含 <code>lm_head</code>；<code>总参数量: 4,958,736</code> 是我们手动统计的全部参数，包含输出词表打分头。<br>
       <strong>自己试试：</strong>将 <code>model_type = 'gpt-nano'</code> 改为 <code>'gpt-mini'</code> 再运行。你会看到层数从 3 增加到 6，总参数大幅增加。
     </div>
   </div>
