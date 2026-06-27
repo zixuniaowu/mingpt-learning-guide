@@ -229,6 +229,14 @@ HTML 还把 `demo.ipynb`、`projects/adder`、`projects/chargpt` 和 Notebook �
 3. 用 Jupyter 打开 `learning_guide.ipynb`
 4. HTML 负责阅读和看图，Notebook 负责运行代码
 
+这本书的执行方式是三件套：
+
+```text
+HTML 书页 -> Notebook 实验台 -> minGPT 源码
+```
+
+先在 HTML 里看图建立直觉，再在 Notebook 里执行真实输出，最后回到 `mingpt/model.py`、`mingpt/trainer.py` 或 `projects/adder/adder.py` 验证实现。
+
 如果你在本地仓库根目录：
 
 ```powershell

@@ -20,8 +20,8 @@
     <a href="#structure">项目结构</a>
     <a href="#workflow">训练工作流</a>
     <div class="nav-group">第一部分：基础原理</div>
-    <a href="#first-principles">1. 语言建模在干什么？</a>
-    <a href="#first-principles">2. 语言建模与学习的第一性原理</a>
+    <a href="#language-modeling-game">1. 语言建模在干什么？</a>
+    <a href="#learning-first-principles">2. 语言建模与学习的第一性原理</a>
     <a href="#history">3. 序列建模的历史演进</a>
     <a href="#tokenization">4. Tokenization 与表示</a>
     <a href="#architecture">5. 整体架构与数据流</a>
@@ -103,6 +103,39 @@ jupyter lab learning_guide.ipynb</code></pre>
     4. 改一两个参数（如 <code>block_size</code>、温度、训练步数），看模型行为如何变化。
   </div>
 
+  <p><strong>图：这本书的执行方式不是“HTML 里直接跑代码”，而是三件事配合（看图说话）</strong></p>
+  <p>HTML 是书页，Notebook 是实验台，源码是真实机器。读者每学一个概念，都应该完成同一个闭环：先看图建立直觉，再跑 Notebook 得到真实输出，最后回到源码确认它在 minGPT 里到底怎么实现。</p>
+  <div class="diagram" style="background:#252c3d; padding:14px; border-radius:6px;">
+    <svg width="680" height="310" viewBox="0 0 680 310" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="12">
+      <defs><marker id="book-exec-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#6c9eff"/></marker></defs>
+      <rect x="42" y="54" width="170" height="112" rx="10" fill="#1e3a5f" stroke="#6c9eff" stroke-width="2"/>
+      <text x="127" y="82" text-anchor="middle" fill="#bfdbfe" font-size="15" font-weight="bold">1. HTML 书页</text>
+      <text x="127" y="108" text-anchor="middle" fill="#dbeafe">看图说话</text>
+      <text x="127" y="128" text-anchor="middle" fill="#dbeafe">理解概念</text>
+      <text x="127" y="148" text-anchor="middle" fill="#93c5fd">learning_guide.html</text>
+
+      <rect x="255" y="54" width="170" height="112" rx="10" fill="#14352a" stroke="#34d399" stroke-width="2"/>
+      <text x="340" y="82" text-anchor="middle" fill="#bbf7d0" font-size="15" font-weight="bold">2. Notebook 实验台</text>
+      <text x="340" y="108" text-anchor="middle" fill="#dcfce7">执行 cell</text>
+      <text x="340" y="128" text-anchor="middle" fill="#dcfce7">观察真实输出</text>
+      <text x="340" y="148" text-anchor="middle" fill="#86efac">learning_guide.ipynb</text>
+
+      <rect x="468" y="54" width="170" height="112" rx="10" fill="#2a1f14" stroke="#fb923c" stroke-width="2"/>
+      <text x="553" y="82" text-anchor="middle" fill="#fed7aa" font-size="15" font-weight="bold">3. 源码机器</text>
+      <text x="553" y="108" text-anchor="middle" fill="#ffedd5">追到实现</text>
+      <text x="553" y="128" text-anchor="middle" fill="#ffedd5">确认真实逻辑</text>
+      <text x="553" y="148" text-anchor="middle" fill="#fdba74">mingpt/model.py</text>
+
+      <line x1="212" y1="110" x2="255" y2="110" stroke="#6c9eff" stroke-width="2" marker-end="url(#book-exec-arrow)"/>
+      <line x1="425" y1="110" x2="468" y2="110" stroke="#34d399" stroke-width="2" marker-end="url(#book-exec-arrow)"/>
+      <path d="M553 166 C553 232, 127 232, 127 166" fill="none" stroke="#a78bfa" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#book-exec-arrow)"/>
+      <text x="340" y="220" text-anchor="middle" fill="#c4b5fd">回到书页：解释输出为什么是这样，再改参数重跑</text>
+
+      <rect x="86" y="256" width="508" height="30" rx="7" fill="#111827" stroke="#334155"/>
+      <text x="340" y="276" text-anchor="middle" fill="#cbd5e1">HTML 可以展示代码，但真正执行需要 Python kernel；所以这本书的执行方式是“书页 + Notebook + 源码”三件套。</text>
+    </svg>
+  </div>
+
   <h3>前置知识（不需要精通，但最好有直觉）</h3>
   <ul>
     <li>Python + 基础 NumPy / PyTorch 张量操作（shape、view、matmul）</li>
@@ -171,7 +204,7 @@ pip install transformers  # 加载预训练 GPT-2 权重时需要</code></pre>
 
   <p>本书的目标不是让你“会用”大模型，而是让你<strong>真正理解</strong>它为什么能工作、它的局限在哪里、以及它与其他架构的本质区别。</p>
 
-  <p>我们会从第一性原理出发，一步步拆解：
+  <p>我们会从第一性原理出发，一步步拆解：</p>
   <ul>
     <li>语言建模到底在做什么？</li>
     <li>一个模型是怎么“学会”预测的？</li>
@@ -179,7 +212,6 @@ pip install transformers  # 加载预训练 GPT-2 权重时需要</code></pre>
     <li>为什么是 GPT 而不是其他架构主导了今天的大模型时代？</li>
     <li>Transformer 有哪些根本性局限？未来的路在哪里？</li>
   </ul>
-  </p>
 
   <p>整本书都配有可运行的代码示例、交互式可视化，以及大量来自真实实现的细节。建议你一边阅读，一边在 Jupyter Notebook 中运行对应的代码。</p>
 
@@ -422,7 +454,7 @@ y = chunk[1:]   # [20, 30, 40, 50, 60]</code></pre>
 
 
 
-  <h3>1. 语言建模到底在干什么？——「永远在猜下一个字」的游戏</h3>
+  <h3 id="language-modeling-game">1. 语言建模到底在干什么？——「永远在猜下一个字」的游戏</h3>
   <p>你小时候有没有玩过「接龙」游戏？老师说「今天天气很好，」你马上接「我」或者「适合」或者「出去玩」。</p>
   <p>GPT 做的就是这件事，而且它要做到极致：给定前面所有的字，它要给「下一个最可能出现的字」打分。</p>
   <p>它不是在「理解意思」，而是在海量文本里学到了统计规律：「在『我喜欢』后面，『猫』出现的次数比『飞机』多得多」。</p>
@@ -437,7 +469,7 @@ y = chunk[1:]   # [20, 30, 40, 50, 60]</code></pre>
   </ul>
   <p>训练时，我们把正确答案告诉它（监督学习），让它越来越准。</p>
 
-  <h2>2. 语言建模与学习的第一性原理</h2>
+  <h2 id="learning-first-principles">2. 语言建模与学习的第一性原理</h2>
 
   <p>到目前为止，我们只说了“模型的任务是猜下一个词”。但它是怎么从“完全不会猜”变成“会猜”的呢？</p>
   <p>这涉及到 AI 最核心的三个基本机制。我们从第一性原理开始讲。</p>
