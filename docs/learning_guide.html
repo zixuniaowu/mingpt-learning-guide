@@ -4338,6 +4338,70 @@ lm_head:      torch.Size([1, 8, 50257]) 均值 ~0  标准差 0.138
     </div>
   </div>
 
+  <p><strong>图：Forward Hook 像在模型内部放探针（看图说话）</strong></p>
+  <p>Hook 不会改变模型计算结果。它只是告诉 PyTorch：“这个模块跑完时，把输出张量顺手复制一份给我看。”所以实验 3 的意义不是训练模型，而是把黑盒的 forward 路径拆成几个可观察的检查点。</p>
+  <div class="diagram" style="text-align:center;padding:1rem">
+    <svg width="760" height="350" viewBox="0 0 760 350" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="12">
+      <defs>
+        <linearGradient id="hook_bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#f8fafc"/>
+          <stop offset="100%" stop-color="#f0f9ff"/>
+        </linearGradient>
+        <marker id="hook_arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0,8 3,0 6" fill="#64748b"/>
+        </marker>
+      </defs>
+      <rect x="0" y="0" width="760" height="350" rx="10" fill="url(#hook_bg)" stroke="#cbd5e1"/>
+
+      <text x="40" y="36" fill="#0f172a" font-size="16" font-weight="700">一次 forward 中，hook 只负责旁路记录，不参与计算</text>
+
+      <rect x="40" y="92" width="92" height="54" rx="9" fill="#111827" stroke="#334155"/>
+      <text x="86" y="114" text-anchor="middle" fill="#f8fafc" font-weight="700">input</text>
+      <text x="86" y="132" text-anchor="middle" fill="#cbd5e1">(1, 8)</text>
+
+      <line x1="132" y1="119" x2="176" y2="119" stroke="#64748b" stroke-width="2" marker-end="url(#hook_arrow)"/>
+      <rect x="182" y="92" width="106" height="54" rx="9" fill="#dbeafe" stroke="#2563eb"/>
+      <text x="235" y="114" text-anchor="middle" fill="#1d4ed8" font-weight="700">wte</text>
+      <text x="235" y="132" text-anchor="middle" fill="#1e3a8a">(1, 8, 48)</text>
+
+      <line x1="288" y1="119" x2="332" y2="119" stroke="#64748b" stroke-width="2" marker-end="url(#hook_arrow)"/>
+      <rect x="338" y="92" width="106" height="54" rx="9" fill="#dcfce7" stroke="#16a34a"/>
+      <text x="391" y="114" text-anchor="middle" fill="#166534" font-weight="700">first block</text>
+      <text x="391" y="132" text-anchor="middle" fill="#14532d">(1, 8, 48)</text>
+
+      <line x1="444" y1="119" x2="488" y2="119" stroke="#64748b" stroke-width="2" marker-end="url(#hook_arrow)"/>
+      <rect x="494" y="92" width="106" height="54" rx="9" fill="#ede9fe" stroke="#8b5cf6"/>
+      <text x="547" y="114" text-anchor="middle" fill="#5b21b6" font-weight="700">last block</text>
+      <text x="547" y="132" text-anchor="middle" fill="#6d28d9">(1, 8, 48)</text>
+
+      <line x1="600" y1="119" x2="644" y2="119" stroke="#64748b" stroke-width="2" marker-end="url(#hook_arrow)"/>
+      <rect x="650" y="92" width="82" height="54" rx="9" fill="#fef3c7" stroke="#f59e0b"/>
+      <text x="691" y="114" text-anchor="middle" fill="#92400e" font-weight="700">lm_head</text>
+      <text x="691" y="132" text-anchor="middle" fill="#78350f">(1,8,V)</text>
+
+      <g stroke="#ef4444" stroke-width="2" stroke-dasharray="5 4" fill="none">
+        <path d="M235 146 C235 184, 162 184, 162 224"/>
+        <path d="M391 146 C391 184, 304 184, 304 224"/>
+        <path d="M547 146 C547 184, 456 184, 456 224"/>
+        <path d="M691 146 C691 184, 604 184, 604 224"/>
+      </g>
+      <g fill="#fee2e2" stroke="#ef4444">
+        <rect x="108" y="224" width="108" height="42" rx="8"/>
+        <rect x="250" y="224" width="108" height="42" rx="8"/>
+        <rect x="402" y="224" width="108" height="42" rx="8"/>
+        <rect x="550" y="224" width="108" height="42" rx="8"/>
+      </g>
+      <text x="162" y="250" text-anchor="middle" fill="#991b1b" font-weight="700">记录 embedding</text>
+      <text x="304" y="250" text-anchor="middle" fill="#991b1b" font-weight="700">记录 first</text>
+      <text x="456" y="250" text-anchor="middle" fill="#991b1b" font-weight="700">记录 last</text>
+      <text x="604" y="250" text-anchor="middle" fill="#991b1b" font-weight="700">记录 logits</text>
+
+      <rect x="122" y="294" width="516" height="34" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+      <text x="380" y="316" text-anchor="middle" fill="#334155">看输出时抓两个信号：中间层形状保持 (B,T,C)，最后 lm_head 才变成 (B,T,V)。</text>
+    </svg>
+  </div>
+  <p>注意最后一行 <code>for h in hooks: h.remove()</code>。Hook 是调试探针，用完要拆掉；否则后续每次 forward 都会继续记录，容易让实验输出混乱。</p>
+
   <h3>实验 4：在最小数据集上使用 Trainer 训练（排序/计数模式）</h3>
   <p>下面演示如何子类化 Dataset 并将其交给 Trainer（灵感来自 demo.ipynb 的 SortDataset 和 learning_guide.ipynb 的简单模式）。</p>
   <div class="notebook-cell">
