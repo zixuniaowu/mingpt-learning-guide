@@ -4255,6 +4255,55 @@ Logits 形状: torch.Size([2, 16, 50257])
     </div>
   </div>
 
+  <p><strong>图：为什么前向输出是 <code>(2, 16, 50257)</code>（看图说话）</strong></p>
+  <p>这个输出不是“一个答案”，而是一整块分数表：2 个样本、每个样本 16 个位置、每个位置都对 50,257 个词表 token 打分。训练时，loss 可以检查很多位置；生成时，通常只拿最后一个位置的 50,257 个分数来选下一个 token。</p>
+  <div class="diagram" style="text-align:center;padding:1rem">
+    <svg width="760" height="360" viewBox="0 0 760 360" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="12">
+      <defs>
+        <linearGradient id="shape_trace_bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#f8fafc"/>
+          <stop offset="100%" stop-color="#eef2ff"/>
+        </linearGradient>
+        <marker id="shape_trace_arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0,8 3,0 6" fill="#64748b"/>
+        </marker>
+      </defs>
+      <rect x="0" y="0" width="760" height="360" rx="10" fill="url(#shape_trace_bg)" stroke="#cbd5e1"/>
+
+      <text x="40" y="36" fill="#0f172a" font-size="16" font-weight="700">把 logits.shape = (2, 16, 50257) 拆开看</text>
+
+      <rect x="48" y="82" width="150" height="66" rx="10" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+      <text x="123" y="108" text-anchor="middle" fill="#1d4ed8" font-weight="700">batch = 2</text>
+      <text x="123" y="130" text-anchor="middle" fill="#1e3a8a">一次喂 2 条序列</text>
+
+      <line x1="198" y1="115" x2="256" y2="115" stroke="#64748b" stroke-width="2" marker-end="url(#shape_trace_arrow)"/>
+      <rect x="262" y="62" width="230" height="106" rx="10" fill="#ffffff" stroke="#cbd5e1"/>
+      <text x="377" y="88" text-anchor="middle" fill="#0f172a" font-weight="700">seq_len = 16</text>
+      <text x="377" y="108" text-anchor="middle" fill="#334155">每条序列有 16 个位置</text>
+      <g fill="#eef2ff" stroke="#6366f1">
+        <rect x="290" y="126" width="22" height="24" rx="4"/><rect x="318" y="126" width="22" height="24" rx="4"/><rect x="346" y="126" width="22" height="24" rx="4"/><rect x="374" y="126" width="22" height="24" rx="4"/><rect x="402" y="126" width="22" height="24" rx="4"/><rect x="430" y="126" width="22" height="24" rx="4"/>
+      </g>
+      <text x="466" y="143" fill="#64748b">... 共 16 格</text>
+
+      <line x1="492" y1="115" x2="550" y2="115" stroke="#64748b" stroke-width="2" marker-end="url(#shape_trace_arrow)"/>
+      <rect x="556" y="82" width="156" height="66" rx="10" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+      <text x="634" y="108" text-anchor="middle" fill="#166534" font-weight="700">vocab = 50257</text>
+      <text x="634" y="130" text-anchor="middle" fill="#14532d">每格都有一整张词表分数</text>
+
+      <rect x="82" y="210" width="260" height="92" rx="12" fill="#fff7ed" stroke="#fb923c" stroke-width="2"/>
+      <text x="212" y="238" text-anchor="middle" fill="#9a3412" font-weight="700">训练时怎么用？</text>
+      <text x="212" y="262" text-anchor="middle" fill="#7c2d12">每个位置都和 y 的目标 token 比</text>
+      <text x="212" y="284" text-anchor="middle" fill="#7c2d12">CrossEntropy 检查很多个预测</text>
+
+      <rect x="418" y="210" width="260" height="92" rx="12" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
+      <text x="548" y="238" text-anchor="middle" fill="#166534" font-weight="700">生成时怎么用？</text>
+      <text x="548" y="262" text-anchor="middle" fill="#14532d">通常只取最后一格 logits[:, -1, :]</text>
+      <text x="548" y="284" text-anchor="middle" fill="#14532d">Softmax 后采样下一个 token</text>
+
+      <text x="380" y="337" text-anchor="middle" fill="#64748b">读 shape 的顺序：有几条序列？每条几个位置？每个位置对多少个词打分？</text>
+    </svg>
+  </div>
+
   <h3>实验 3：使用前向钩子窥视模型内部</h3>
   <div class="notebook-cell">
     <div class="cell-header">
