@@ -2696,6 +2696,62 @@ with torch.no_grad():
     <strong>什么时候不该微调</strong>：如果你的需求是"回答关于公司文档的问题"，RAG（检索+提示词）通常比微调更好。微调教模型的是<em>如何</em>回答，而不是<em>知道什么</em>。当你需要模型学习新的<em>模式</em>（格式、语气、推理风格）时用微调，而不是需要它知道新的事实时。
   </div>
 
+  <p><strong>图：微调学“怎么回答”，RAG 提供“根据什么回答”（看图说话）</strong></p>
+  <p>判断该不该微调时，先问一个很实际的问题：你缺的是新的行为模式，还是新的外部知识？如果缺的是公司文档、产品价格、最新政策，这些事实应该放在检索系统里；如果缺的是固定格式、客服语气、代码审查风格，这些模式才适合用微调写进模型参数。</p>
+  <div class="diagram" style="text-align:center;padding:1rem">
+    <svg width="760" height="360" viewBox="0 0 760 360" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="12">
+      <defs>
+        <linearGradient id="ft_decision_bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#f8fafc"/>
+          <stop offset="100%" stop-color="#eff6ff"/>
+        </linearGradient>
+        <marker id="ft_decision_arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0,8 3,0 6" fill="#64748b"/>
+        </marker>
+      </defs>
+      <rect x="0" y="0" width="760" height="360" rx="10" fill="url(#ft_decision_bg)" stroke="#cbd5e1"/>
+
+      <rect x="255" y="28" width="250" height="54" rx="10" fill="#111827" stroke="#334155"/>
+      <text x="380" y="51" text-anchor="middle" fill="#f8fafc" font-weight="700">你的模型回答不好</text>
+      <text x="380" y="69" text-anchor="middle" fill="#cbd5e1">先判断：缺知识，还是缺行为？</text>
+
+      <line x1="320" y1="82" x2="190" y2="128" stroke="#64748b" stroke-width="2" marker-end="url(#ft_decision_arrow)"/>
+      <line x1="440" y1="82" x2="570" y2="128" stroke="#64748b" stroke-width="2" marker-end="url(#ft_decision_arrow)"/>
+
+      <rect x="48" y="130" width="270" height="112" rx="10" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+      <text x="183" y="156" text-anchor="middle" fill="#1d4ed8" font-size="15" font-weight="700">缺新的事实知识</text>
+      <text x="183" y="180" text-anchor="middle" fill="#1e3a8a">公司文档 / 价格 / 政策 / API 手册</text>
+      <text x="183" y="202" text-anchor="middle" fill="#1e3a8a">这些内容会更新，不能靠参数硬记</text>
+      <rect x="91" y="214" width="184" height="28" rx="7" fill="#1e40af" stroke="#93c5fd"/>
+      <text x="183" y="233" text-anchor="middle" fill="#dbeafe" font-weight="700">优先用 RAG</text>
+
+      <rect x="442" y="130" width="270" height="112" rx="10" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+      <text x="577" y="156" text-anchor="middle" fill="#166534" font-size="15" font-weight="700">缺新的行为模式</text>
+      <text x="577" y="180" text-anchor="middle" fill="#14532d">固定格式 / 语气 / 推理步骤 / 审查规范</text>
+      <text x="577" y="202" text-anchor="middle" fill="#14532d">这些是“怎么答”，适合写进参数</text>
+      <rect x="485" y="214" width="184" height="28" rx="7" fill="#166534" stroke="#86efac"/>
+      <text x="577" y="233" text-anchor="middle" fill="#dcfce7" font-weight="700">优先用微调</text>
+
+      <line x1="183" y1="242" x2="183" y2="274" stroke="#2563eb" stroke-width="2" marker-end="url(#ft_decision_arrow)"/>
+      <line x1="577" y1="242" x2="577" y2="274" stroke="#16a34a" stroke-width="2" marker-end="url(#ft_decision_arrow)"/>
+
+      <rect x="66" y="278" width="234" height="46" rx="8" fill="#eff6ff" stroke="#93c5fd"/>
+      <text x="183" y="298" text-anchor="middle" fill="#1e3a8a" font-weight="700">把知识放在外部库</text>
+      <text x="183" y="316" text-anchor="middle" fill="#334155">检索相关片段，再让模型基于证据回答</text>
+
+      <rect x="460" y="278" width="234" height="46" rx="8" fill="#f0fdf4" stroke="#86efac"/>
+      <text x="577" y="298" text-anchor="middle" fill="#14532d" font-weight="700">把模式写进训练样本</text>
+      <text x="577" y="316" text-anchor="middle" fill="#334155">用高质量输入输出对改变输出偏好</text>
+
+      <rect x="258" y="250" width="244" height="54" rx="10" fill="#fef3c7" stroke="#f59e0b" stroke-width="2"/>
+      <text x="380" y="272" text-anchor="middle" fill="#92400e" font-weight="700">真实产品经常二者都用</text>
+      <text x="380" y="291" text-anchor="middle" fill="#78350f">RAG 给证据，微调给稳定风格</text>
+
+      <text x="380" y="344" text-anchor="middle" fill="#64748b">一句话：事实放在上下文里，习惯写进参数里。</text>
+    </svg>
+  </div>
+  <p>和 minGPT 的关系也很直接：微调仍然是 <code>(x, y)</code> 训练，只是 <code>y</code> 展示你想要的回答模式；RAG 则通常不改模型参数，而是在推理前把检索到的文档拼进 <code>x</code>，让模型在新的上下文里继续做下一个 token 预测。</p>
+
   <h3>与 minGPT 的联系</h3>
   <p>你在 minGPT 中学到的训练循环直接适用于微调：</p>
   <ul>
