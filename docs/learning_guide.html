@@ -1678,6 +1678,71 @@ x ← x + FFN(LayerNorm(x))</div>
   <h3>为什么 Pre-LN 比 Post-LN 更稳定？</h3>
   <p>在 Post-LN 中，层归一化在残差相加之后：Output = LN(x + Sublayer(x))。这意味着归一化在残差混合之后进行，梯度的路径更长。在 Pre-LN 中：Output = x + Sublayer(LN(x))。归一化在子层之前，残差路径是完全不受干扰的——梯度可以直接流过整个网络。实验表明，Pre-LN 允许更高的学习率和更深层的网络而不爆炸。</p>
 
+  <p><strong>图：Pre-LN 为什么给梯度留了一条直通路（看图说话）</strong></p>
+  <p>读这节时不要只记术语。关键问题是：反向传播时，梯度能不能沿着残差分支一路传回前面的层？Pre-LN 的答案是“可以”，因为残差分支上的 <code>x</code> 没有被 LayerNorm 包住；Post-LN 的答案是“更难”，因为残差相加后还要穿过一次 LayerNorm。</p>
+  <div class="diagram" style="text-align:center;padding:1rem">
+    <svg width="760" height="390" viewBox="0 0 760 390" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="12">
+      <defs>
+        <linearGradient id="preln_bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#f8fafc"/>
+          <stop offset="100%" stop-color="#f0fdf4"/>
+        </linearGradient>
+        <marker id="preln_arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0,8 3,0 6" fill="#475569"/>
+        </marker>
+        <marker id="preln_grad_arrow" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto">
+          <polygon points="8 0,0 3,8 6" fill="#16a34a"/>
+        </marker>
+        <marker id="postln_grad_arrow" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto">
+          <polygon points="8 0,0 3,8 6" fill="#dc2626"/>
+        </marker>
+      </defs>
+      <rect x="0" y="0" width="760" height="390" rx="10" fill="url(#preln_bg)" stroke="#cbd5e1"/>
+
+      <text x="40" y="36" fill="#0f172a" font-size="16" font-weight="700">同一个子层，两种摆法：LayerNorm 放在前面还是后面？</text>
+
+      <text x="70" y="78" fill="#166534" font-size="15" font-weight="700">Pre-LN：minGPT / GPT-2 的写法</text>
+      <text x="70" y="100" fill="#334155">Output = x + Sublayer(LN(x))</text>
+      <rect x="70" y="128" width="78" height="44" rx="8" fill="#dcfce7" stroke="#16a34a"/>
+      <text x="109" y="154" text-anchor="middle" fill="#166534" font-weight="700">x</text>
+      <line x1="148" y1="150" x2="250" y2="150" stroke="#16a34a" stroke-width="5" marker-end="url(#preln_arrow)"/>
+      <line x1="148" y1="150" x2="188" y2="118" stroke="#64748b" stroke-width="2"/>
+      <rect x="190" y="95" width="78" height="44" rx="8" fill="#fef3c7" stroke="#f59e0b"/>
+      <text x="229" y="121" text-anchor="middle" fill="#92400e" font-weight="700">LN</text>
+      <line x1="268" y1="117" x2="315" y2="117" stroke="#475569" stroke-width="2" marker-end="url(#preln_arrow)"/>
+      <rect x="316" y="95" width="108" height="44" rx="8" fill="#dbeafe" stroke="#2563eb"/>
+      <text x="370" y="121" text-anchor="middle" fill="#1d4ed8" font-weight="700">Sublayer</text>
+      <line x1="424" y1="117" x2="470" y2="144" stroke="#475569" stroke-width="2" marker-end="url(#preln_arrow)"/>
+      <circle cx="486" cy="150" r="20" fill="#f8fafc" stroke="#16a34a" stroke-width="2"/>
+      <text x="486" y="157" text-anchor="middle" fill="#166534" font-size="20">+</text>
+      <line x1="506" y1="150" x2="615" y2="150" stroke="#16a34a" stroke-width="5" marker-end="url(#preln_arrow)"/>
+      <rect x="620" y="128" width="78" height="44" rx="8" fill="#dcfce7" stroke="#16a34a"/>
+      <text x="659" y="154" text-anchor="middle" fill="#166534" font-weight="700">out</text>
+      <line x1="690" y1="188" x2="82" y2="188" stroke="#16a34a" stroke-width="3" stroke-dasharray="7 5" marker-end="url(#preln_grad_arrow)"/>
+      <text x="378" y="210" text-anchor="middle" fill="#166534" font-weight="700">反向传播：梯度可以沿残差主路直接回流</text>
+
+      <text x="70" y="252" fill="#991b1b" font-size="15" font-weight="700">Post-LN：原始 Transformer 的写法</text>
+      <text x="70" y="274" fill="#334155">Output = LN(x + Sublayer(x))</text>
+      <rect x="70" y="302" width="78" height="44" rx="8" fill="#fee2e2" stroke="#dc2626"/>
+      <text x="109" y="328" text-anchor="middle" fill="#991b1b" font-weight="700">x</text>
+      <line x1="148" y1="324" x2="250" y2="324" stroke="#dc2626" stroke-width="5" marker-end="url(#preln_arrow)"/>
+      <line x1="148" y1="324" x2="310" y2="292" stroke="#64748b" stroke-width="2"/>
+      <rect x="316" y="270" width="108" height="44" rx="8" fill="#dbeafe" stroke="#2563eb"/>
+      <text x="370" y="296" text-anchor="middle" fill="#1d4ed8" font-weight="700">Sublayer</text>
+      <line x1="424" y1="292" x2="470" y2="318" stroke="#475569" stroke-width="2" marker-end="url(#preln_arrow)"/>
+      <circle cx="486" cy="324" r="20" fill="#f8fafc" stroke="#dc2626" stroke-width="2"/>
+      <text x="486" y="331" text-anchor="middle" fill="#991b1b" font-size="20">+</text>
+      <line x1="506" y1="324" x2="548" y2="324" stroke="#475569" stroke-width="2" marker-end="url(#preln_arrow)"/>
+      <rect x="552" y="302" width="78" height="44" rx="8" fill="#fef3c7" stroke="#f59e0b"/>
+      <text x="591" y="328" text-anchor="middle" fill="#92400e" font-weight="700">LN</text>
+      <line x1="630" y1="324" x2="675" y2="324" stroke="#dc2626" stroke-width="5" marker-end="url(#preln_arrow)"/>
+      <line x1="690" y1="362" x2="555" y2="362" stroke="#dc2626" stroke-width="3" stroke-dasharray="7 5" marker-end="url(#postln_grad_arrow)"/>
+      <line x1="555" y1="362" x2="555" y2="347" stroke="#dc2626" stroke-width="3" stroke-dasharray="7 5"/>
+      <text x="350" y="366" text-anchor="middle" fill="#991b1b" font-weight="700">反向传播：梯度先穿过 LN，深层时更容易不稳定</text>
+    </svg>
+  </div>
+  <p>所以 minGPT 的 <code>Block.forward()</code> 写成两条很短的 Pre-LN 残差更新：<code>x = x + self.attn(self.ln_1(x))</code>，再 <code>x = x + self.mlpf(self.ln_2(x))</code>。这不是代码风格问题，而是深层 Transformer 能不能稳定训练的问题。</p>
+
   <h3>架构演进：代码级深入解析</h3>
 
   <h4>RMSNorm vs LayerNorm</h4>
