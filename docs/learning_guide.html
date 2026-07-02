@@ -2069,6 +2069,60 @@ Hello → ['Hello'] → [15496]
     <li><strong>稳定阶段</strong>：对于非常大的模型，有一个学习率保持不变的阶段。</li>
   </ul>
 
+  <p><strong>图：Warmup、Cosine Decay 与梯度裁剪怎样一起稳定训练（看图说话）</strong></p>
+  <p>把训练想成“每一步都要决定走多远”。学习率调度控制正常情况下的步长；梯度裁剪负责处理偶发的异常大梯度。前者让训练有节奏，后者防止一次坏更新把模型推飞。</p>
+  <div class="diagram" style="text-align:center;padding:1rem">
+    <svg width="720" height="340" viewBox="0 0 720 340" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="12">
+      <defs>
+        <linearGradient id="train_stability_bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#f8fafc"/>
+          <stop offset="100%" stop-color="#eef2ff"/>
+        </linearGradient>
+        <marker id="train_stability_arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0,8 3,0 6" fill="#64748b"/>
+        </marker>
+      </defs>
+
+      <rect x="0" y="0" width="720" height="340" rx="10" fill="url(#train_stability_bg)" stroke="#cbd5e1"/>
+
+      <text x="40" y="34" fill="#0f172a" font-weight="700" font-size="15">1. 学习率调度：先小心探路，再逐步收敛</text>
+      <line x1="70" y1="150" x2="650" y2="150" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#train_stability_arrow)"/>
+      <line x1="70" y1="150" x2="70" y2="58" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#train_stability_arrow)"/>
+      <text x="648" y="168" text-anchor="end" fill="#64748b">training step</text>
+      <text x="78" y="66" fill="#64748b">lr</text>
+
+      <path d="M 80 145 L 205 78 Q 230 66 255 72 C 340 94 430 128 620 142" fill="none" stroke="#2563eb" stroke-width="4" stroke-linecap="round"/>
+      <line x1="205" y1="55" x2="205" y2="158" stroke="#f97316" stroke-width="1.5" stroke-dasharray="5 4"/>
+      <text x="143" y="62" fill="#f97316" font-weight="700">Warmup</text>
+      <text x="144" y="78" fill="#475569">从接近 0 开始</text>
+      <text x="144" y="94" fill="#475569">避免早期大步乱跳</text>
+
+      <text x="355" y="70" fill="#2563eb" font-weight="700">Cosine Decay</text>
+      <text x="355" y="86" fill="#475569">越到后期步子越小</text>
+      <text x="355" y="102" fill="#475569">让 loss 更平滑地下降</text>
+
+      <circle cx="205" cy="78" r="5" fill="#2563eb"/>
+      <text x="215" y="122" fill="#0f172a">峰值学习率</text>
+      <line x1="217" y1="116" x2="209" y2="84" stroke="#0f172a" stroke-width="1"/>
+
+      <text x="40" y="196" fill="#0f172a" font-weight="700" font-size="15">2. 梯度裁剪：异常大的梯度只允许走到阈值以内</text>
+      <line x1="70" y1="300" x2="650" y2="300" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#train_stability_arrow)"/>
+      <line x1="70" y1="300" x2="70" y2="215" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#train_stability_arrow)"/>
+      <text x="648" y="318" text-anchor="end" fill="#64748b">training step</text>
+      <text x="76" y="224" fill="#64748b">grad norm</text>
+
+      <line x1="80" y1="248" x2="625" y2="248" stroke="#ef4444" stroke-width="2" stroke-dasharray="6 4"/>
+      <text x="540" y="241" fill="#ef4444" font-weight="700">clip threshold = 1.0</text>
+      <path d="M 85 286 C 120 274 150 280 178 270 S 230 274 260 260 S 315 272 338 236 S 380 278 418 266 S 470 276 500 254 S 558 272 620 262" fill="none" stroke="#64748b" stroke-width="3" stroke-linecap="round"/>
+      <path d="M 338 236 L 338 248" stroke="#ef4444" stroke-width="5" stroke-linecap="round"/>
+      <circle cx="338" cy="236" r="5" fill="#ef4444"/>
+      <text x="284" y="224" fill="#ef4444" font-weight="700">异常尖峰</text>
+      <text x="284" y="240" fill="#475569">原本会造成过大更新</text>
+      <text x="374" y="263" fill="#0f172a">裁剪后，只按阈值内的长度更新</text>
+    </svg>
+  </div>
+  <p>对应到 minGPT：<code>learning_rate</code>、<code>warmup_tokens</code>、<code>final_tokens</code> 决定上半张曲线；<code>grad_norm_clip=1.0</code> 决定下半张红线。它们解决的是同一件事：不要让参数更新忽大忽小。</p>
+
   <h3>深入理解 AdamW 超参数：betas=(0.9, 0.95)</h3>
   <p>AdamW 中的两个 beta 值控制着优化过程中完全不同的方面：</p>
   <ul>
