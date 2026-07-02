@@ -2083,6 +2083,65 @@ x ← x + FFN(LayerNorm(x))</div>
     </svg>
   </div>
 
+  <p><strong>图：BPE 为什么既能压缩常见词，又不会被生僻文本卡住（看图说话）</strong></p>
+  <p>BPE 的核心不是“把每个英文单词查成一个 ID”。它更像一个可回退的拼装系统：常见片段会被合并成大 token，罕见片段会拆成更小的子词；如果还不认识，GPT-2 的字节级方案至少能退回到 UTF-8 字节，所以几乎不会出现传统意义上的 unknown token。</p>
+  <div class="diagram" style="text-align:center;padding:1rem">
+    <svg width="760" height="350" viewBox="0 0 760 350" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="12">
+      <defs>
+        <linearGradient id="bpe_fallback_bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#f8fafc"/>
+          <stop offset="100%" stop-color="#f0f9ff"/>
+        </linearGradient>
+        <marker id="bpe_fallback_arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0,8 3,0 6" fill="#64748b"/>
+        </marker>
+      </defs>
+      <rect x="0" y="0" width="760" height="350" rx="10" fill="url(#bpe_fallback_bg)" stroke="#cbd5e1"/>
+
+      <text x="40" y="36" fill="#0f172a" font-size="16" font-weight="700">BPE 的三种结果：常见就合并，少见就拆开，陌生也能退回字节</text>
+
+      <rect x="44" y="78" width="194" height="86" rx="10" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+      <text x="141" y="104" text-anchor="middle" fill="#166534" font-weight="700">常见片段</text>
+      <text x="141" y="128" text-anchor="middle" fill="#14532d">"Hello" 经常出现</text>
+      <rect x="82" y="142" width="118" height="24" rx="6" fill="#166534" stroke="#86efac"/>
+      <text x="141" y="159" text-anchor="middle" fill="#dcfce7">一个 token ID</text>
+
+      <rect x="284" y="78" width="194" height="86" rx="10" fill="#fef3c7" stroke="#f59e0b" stroke-width="2"/>
+      <text x="381" y="104" text-anchor="middle" fill="#92400e" font-weight="700">罕见词 / 人名</text>
+      <text x="381" y="128" text-anchor="middle" fill="#78350f">"Andrej" 不够常见</text>
+      <rect x="312" y="142" width="70" height="24" rx="6" fill="#92400e" stroke="#fbbf24"/>
+      <text x="347" y="159" text-anchor="middle" fill="#fef3c7">Andre</text>
+      <rect x="390" y="142" width="42" height="24" rx="6" fill="#92400e" stroke="#fbbf24"/>
+      <text x="411" y="159" text-anchor="middle" fill="#fef3c7">j</text>
+
+      <rect x="524" y="78" width="194" height="86" rx="10" fill="#fee2e2" stroke="#ef4444" stroke-width="2"/>
+      <text x="621" y="104" text-anchor="middle" fill="#991b1b" font-weight="700">符号 / emoji / 生僻字</text>
+      <text x="621" y="128" text-anchor="middle" fill="#7f1d1d">词表没有完整片段</text>
+      <rect x="556" y="142" width="130" height="24" rx="6" fill="#991b1b" stroke="#fca5a5"/>
+      <text x="621" y="159" text-anchor="middle" fill="#fee2e2">退回 UTF-8 字节</text>
+
+      <line x1="141" y1="164" x2="141" y2="216" stroke="#16a34a" stroke-width="2" marker-end="url(#bpe_fallback_arrow)"/>
+      <line x1="381" y1="164" x2="381" y2="216" stroke="#f59e0b" stroke-width="2" marker-end="url(#bpe_fallback_arrow)"/>
+      <line x1="621" y1="164" x2="621" y2="216" stroke="#ef4444" stroke-width="2" marker-end="url(#bpe_fallback_arrow)"/>
+
+      <rect x="72" y="220" width="138" height="52" rx="8" fill="#f0fdf4" stroke="#86efac"/>
+      <text x="141" y="242" text-anchor="middle" fill="#166534" font-weight="700">序列更短</text>
+      <text x="141" y="260" text-anchor="middle" fill="#14532d">效率更高</text>
+
+      <rect x="312" y="220" width="138" height="52" rx="8" fill="#fff7ed" stroke="#fbbf24"/>
+      <text x="381" y="242" text-anchor="middle" fill="#92400e" font-weight="700">仍可表达</text>
+      <text x="381" y="260" text-anchor="middle" fill="#78350f">组合子词</text>
+
+      <rect x="552" y="220" width="138" height="52" rx="8" fill="#fef2f2" stroke="#fca5a5"/>
+      <text x="621" y="242" text-anchor="middle" fill="#991b1b" font-weight="700">不会 OOV</text>
+      <text x="621" y="260" text-anchor="middle" fill="#7f1d1d">最多变长</text>
+
+      <rect x="108" y="304" width="544" height="28" rx="7" fill="#111827" stroke="#334155"/>
+      <text x="380" y="323" text-anchor="middle" fill="#cbd5e1">分词器的取舍：token 越粗，序列越短；token 越细，覆盖越稳。BPE 在两者之间折中。</text>
+    </svg>
+  </div>
+  <p>这也解释了调试输出里为什么会看到 <code>ĠAndre</code>、<code>j</code> 这种片段：它不是“分错了”，而是在用训练语料中学到的高频子词拼出罕见字符串。空格前缀 <code>Ġ</code> 则是在提醒模型：这个片段前面有一个词边界。</p>
+
   <h3>编码流程</h3>
   <ol>
     <li><strong>预分词</strong>：使用正则表达式将文本分割为单词片段（处理空格、标点等）</li>
