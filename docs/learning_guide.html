@@ -1278,6 +1278,79 @@ print("解码回去:", tokenizer.decode(ids[0]))</code></pre>
   <p>用公式表达（单头注意力）：</p>
   <div class="formula">Attention(Q, K, V) = softmax(QK^T / √d_k) · V</div>
 
+  <p><strong>图：Q/K/V、因果掩码、Softmax 到底怎样连起来（看图说话）</strong></p>
+  <p>很多人背得出公式，但看不见公式里每一步在做什么。下面这张图只看第 2 个 token <code>like</code> 这一行：它拿自己的 Query 去问所有 Key，先得到相关性分数，再用因果掩码把未来 token 盖掉，最后把剩下的分数变成概率，用这些概率混合 Value。</p>
+  <div class="diagram" style="text-align:center;padding:1rem">
+    <svg width="780" height="430" viewBox="0 0 780 430" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="12">
+      <defs>
+        <linearGradient id="attn_story_bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#f8fafc"/>
+          <stop offset="100%" stop-color="#ecfeff"/>
+        </linearGradient>
+        <marker id="attn_story_arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0,8 3,0 6" fill="#64748b"/>
+        </marker>
+      </defs>
+      <rect x="0" y="0" width="780" height="430" rx="10" fill="url(#attn_story_bg)" stroke="#cbd5e1"/>
+
+      <text x="36" y="35" fill="#0f172a" font-size="16" font-weight="700">例子：I like cats。现在只追踪 token 1，也就是 like 这一行。</text>
+
+      <rect x="45" y="62" width="92" height="44" rx="8" fill="#dbeafe" stroke="#2563eb"/>
+      <text x="91" y="88" text-anchor="middle" fill="#1e40af" font-weight="700">I</text>
+      <rect x="150" y="62" width="92" height="44" rx="8" fill="#dcfce7" stroke="#16a34a"/>
+      <text x="196" y="88" text-anchor="middle" fill="#166534" font-weight="700">like</text>
+      <rect x="255" y="62" width="92" height="44" rx="8" fill="#fee2e2" stroke="#dc2626"/>
+      <text x="301" y="88" text-anchor="middle" fill="#991b1b" font-weight="700">cats</text>
+
+      <text x="418" y="72" fill="#0f172a" font-weight="700">Q/K/V 是三种角色，不是三个新词</text>
+      <text x="418" y="94" fill="#334155">Query：like 现在想找什么信息？</text>
+      <text x="418" y="114" fill="#334155">Key：每个位置拿什么特征来被匹配？</text>
+      <text x="418" y="134" fill="#334155">Value：如果被关注，要贡献什么内容？</text>
+
+      <line x1="196" y1="112" x2="196" y2="145" stroke="#16a34a" stroke-width="2" marker-end="url(#attn_story_arrow)"/>
+      <text x="210" y="137" fill="#166534">like 的 Query</text>
+
+      <text x="45" y="178" fill="#0f172a" font-weight="700">1. Q·K 得到原始分数</text>
+      <rect x="45" y="195" width="92" height="44" rx="6" fill="#dbeafe" stroke="#93c5fd"/>
+      <text x="91" y="221" text-anchor="middle" fill="#1e3a8a">I: 0.7</text>
+      <rect x="150" y="195" width="92" height="44" rx="6" fill="#dcfce7" stroke="#86efac"/>
+      <text x="196" y="221" text-anchor="middle" fill="#166534">like: 1.2</text>
+      <rect x="255" y="195" width="92" height="44" rx="6" fill="#fee2e2" stroke="#fca5a5"/>
+      <text x="301" y="221" text-anchor="middle" fill="#991b1b">cats: -0.3</text>
+      <text x="45" y="260" fill="#475569">分数越大，表示 like 越愿意从那个位置取信息。</text>
+
+      <line x1="370" y1="218" x2="415" y2="218" stroke="#64748b" stroke-width="2" marker-end="url(#attn_story_arrow)"/>
+      <text x="418" y="178" fill="#0f172a" font-weight="700">2. GPT 加因果掩码</text>
+      <rect x="418" y="195" width="92" height="44" rx="6" fill="#dbeafe" stroke="#93c5fd"/>
+      <text x="464" y="221" text-anchor="middle" fill="#1e3a8a">0.7</text>
+      <rect x="523" y="195" width="92" height="44" rx="6" fill="#dcfce7" stroke="#86efac"/>
+      <text x="569" y="221" text-anchor="middle" fill="#166534">1.2</text>
+      <rect x="628" y="195" width="92" height="44" rx="6" fill="#fecaca" stroke="#ef4444"/>
+      <text x="674" y="221" text-anchor="middle" fill="#991b1b">-inf</text>
+      <text x="418" y="260" fill="#475569">cats 在 like 的右边，是未来信息。GPT 训练时不允许偷看。</text>
+
+      <line x1="390" y1="285" x2="390" y2="320" stroke="#64748b" stroke-width="2" marker-end="url(#attn_story_arrow)"/>
+      <text x="45" y="340" fill="#0f172a" font-weight="700">3. Softmax 把分数变成概率</text>
+      <rect x="45" y="355" width="92" height="44" rx="6" fill="#dbeafe" stroke="#93c5fd"/>
+      <text x="91" y="381" text-anchor="middle" fill="#1e3a8a">0.38</text>
+      <rect x="150" y="355" width="92" height="44" rx="6" fill="#dcfce7" stroke="#86efac"/>
+      <text x="196" y="381" text-anchor="middle" fill="#166534">0.62</text>
+      <rect x="255" y="355" width="92" height="44" rx="6" fill="#fee2e2" stroke="#fca5a5"/>
+      <text x="301" y="381" text-anchor="middle" fill="#991b1b">0.00</text>
+
+      <line x1="370" y1="377" x2="415" y2="377" stroke="#64748b" stroke-width="2" marker-end="url(#attn_story_arrow)"/>
+      <text x="418" y="340" fill="#0f172a" font-weight="700">4. 用概率混合 Value</text>
+      <rect x="418" y="352" width="302" height="54" rx="8" fill="#f8fafc" stroke="#94a3b8"/>
+      <text x="569" y="374" text-anchor="middle" fill="#0f172a" font-weight="700">
+        <tspan x="569" dy="0">out_like = 0.38 * V_I</tspan>
+        <tspan x="569" dy="17">+ 0.62 * V_like + 0.00 * V_cats</tspan>
+      </text>
+
+      <text x="418" y="414" fill="#475569">关键直觉：注意力不是复制某个词，而是在当前层里重新混合历史信息。</text>
+    </svg>
+  </div>
+  <p>这张图也解释了为什么 GPT 的注意力矩阵是下三角：第 0 行只能看 token 0，第 1 行只能看 token 0 和 1，第 2 行才能看 token 0、1、2。生成时也是同一个规则，所以模型永远是在“只看左边”的条件下预测下一个 token。</p>
+
   <h3>多头注意力机制</h3>
   <p>与其让一个注意力"专家"处理所有关系，不如让多个专家各司其职。每个头学习不同类型的注意力：一个头可能关注语法关系（哪个形容词修饰哪个名词），另一个头关注位置关系（"他"指代前文提到的谁），还有一个头关注语义相关性（"银行"和"存钱"的关联）。</p>
   <p>计算时，Q、K、V 被分割成 n_head 份。每个头独立计算注意力，结果再拼接并通过一个线性投影合并。在 minGPT 的 gpt-nano 中：n_embd=48, n_head=3，每个头看到 16 维——这意味着每个头只在一个子空间里计算关系，但它们各自的贡献拼接起来后仍然恢复到完整的 48 维表达。</p>
