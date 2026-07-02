@@ -3666,6 +3666,68 @@ for x_t in input_sequence:    # 顺序扫描
   </ul>
   <p><strong>LLM-as-Judge 的问题</strong>：位置偏差（偏好第一个或第二个回复）、冗长偏差（偏好更长的回复）、自我增强偏差（偏好自己的风格）和评分标准过拟合。尽管如此，LLM-as-Judge 与人类判断的相关性相当不错（Spearman 相关系数 0.5-0.7），被广泛用于快速迭代。</p>
 
+  <p><strong>图：LLM-as-Judge 不是“真理裁判”，而是一个会受输入影响的评分器（看图说话）</strong></p>
+  <p>自动评估好用，是因为它便宜、快、可批量运行。但它仍然是一次模型调用：你给它题目、两个回答和评分标准，它输出一个判断。只要输入顺序、回答长度、评分标准或裁判模型本身有偏差，分数就可能被带偏。</p>
+  <div class="diagram" style="text-align:center;padding:1rem">
+    <svg width="760" height="360" viewBox="0 0 760 360" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="12">
+      <defs>
+        <linearGradient id="judge_bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#f8fafc"/>
+          <stop offset="100%" stop-color="#fff7ed"/>
+        </linearGradient>
+        <marker id="judge_arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0,8 3,0 6" fill="#64748b"/>
+        </marker>
+      </defs>
+      <rect x="0" y="0" width="760" height="360" rx="10" fill="url(#judge_bg)" stroke="#cbd5e1"/>
+
+      <text x="38" y="36" fill="#0f172a" font-size="16" font-weight="700">自动裁判的本质：把“评价任务”也交给另一个语言模型</text>
+
+      <rect x="42" y="72" width="160" height="64" rx="10" fill="#dbeafe" stroke="#2563eb"/>
+      <text x="122" y="98" text-anchor="middle" fill="#1d4ed8" font-weight="700">题目 / 用户请求</text>
+      <text x="122" y="118" text-anchor="middle" fill="#1e3a8a">同一个 prompt</text>
+
+      <rect x="42" y="158" width="160" height="64" rx="10" fill="#dcfce7" stroke="#16a34a"/>
+      <text x="122" y="184" text-anchor="middle" fill="#166534" font-weight="700">回答 A / B</text>
+      <text x="122" y="204" text-anchor="middle" fill="#14532d">候选模型输出</text>
+
+      <rect x="42" y="244" width="160" height="64" rx="10" fill="#fef3c7" stroke="#f59e0b"/>
+      <text x="122" y="270" text-anchor="middle" fill="#92400e" font-weight="700">评分标准</text>
+      <text x="122" y="290" text-anchor="middle" fill="#78350f">rubric / 约束</text>
+
+      <line x1="202" y1="104" x2="285" y2="162" stroke="#64748b" stroke-width="2" marker-end="url(#judge_arrow)"/>
+      <line x1="202" y1="190" x2="285" y2="190" stroke="#64748b" stroke-width="2" marker-end="url(#judge_arrow)"/>
+      <line x1="202" y1="276" x2="285" y2="218" stroke="#64748b" stroke-width="2" marker-end="url(#judge_arrow)"/>
+
+      <rect x="292" y="136" width="178" height="108" rx="12" fill="#111827" stroke="#334155"/>
+      <text x="381" y="164" text-anchor="middle" fill="#f8fafc" font-weight="700">Judge LLM</text>
+      <text x="381" y="188" text-anchor="middle" fill="#cbd5e1">阅读题目、回答、rubric</text>
+      <text x="381" y="210" text-anchor="middle" fill="#cbd5e1">输出偏好或分数</text>
+      <rect x="324" y="222" width="114" height="24" rx="6" fill="#2a1f14" stroke="#fb923c"/>
+      <text x="381" y="239" text-anchor="middle" fill="#fed7aa">A wins / score=4</text>
+
+      <line x1="470" y1="190" x2="544" y2="190" stroke="#64748b" stroke-width="2" marker-end="url(#judge_arrow)"/>
+      <rect x="552" y="136" width="166" height="108" rx="12" fill="#fff7ed" stroke="#fb923c" stroke-width="2"/>
+      <text x="635" y="162" text-anchor="middle" fill="#9a3412" font-weight="700">评价结果</text>
+      <text x="635" y="188" text-anchor="middle" fill="#7c2d12">很有用，但不是绝对真相</text>
+      <text x="635" y="210" text-anchor="middle" fill="#7c2d12">需要抽样人工复核</text>
+      <text x="635" y="232" text-anchor="middle" fill="#7c2d12">需要多轮一致性检查</text>
+
+      <text x="300" y="285" fill="#0f172a" font-weight="700">常见偏差来源</text>
+      <rect x="300" y="300" width="94" height="34" rx="7" fill="#fee2e2" stroke="#ef4444"/>
+      <text x="347" y="322" text-anchor="middle" fill="#991b1b">位置偏差</text>
+      <rect x="408" y="300" width="94" height="34" rx="7" fill="#fee2e2" stroke="#ef4444"/>
+      <text x="455" y="322" text-anchor="middle" fill="#991b1b">冗长偏差</text>
+      <rect x="516" y="300" width="94" height="34" rx="7" fill="#fee2e2" stroke="#ef4444"/>
+      <text x="563" y="322" text-anchor="middle" fill="#991b1b">风格偏差</text>
+      <rect x="624" y="300" width="94" height="34" rx="7" fill="#fee2e2" stroke="#ef4444"/>
+      <text x="671" y="322" text-anchor="middle" fill="#991b1b">rubric 偏差</text>
+
+      <text x="380" y="348" text-anchor="middle" fill="#64748b">正确用法：让自动裁判做筛选和回归测试，不要把单次分数当成最终事实。</text>
+    </svg>
+  </div>
+  <p>实践中更稳的做法是：随机交换 A/B 顺序、多裁判或多次采样取一致结论、保留一小批人工金标样本做校准，并且把评估维度拆开看。这样自动评估才能成为工程工具，而不是新的幻觉来源。</p>
+
   <h3>如何看待基准测试分数</h3>
   <p>阅读模型排行榜时，记住这些局限性：</p>
   <ul>
