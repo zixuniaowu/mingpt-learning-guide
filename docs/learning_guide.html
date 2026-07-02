@@ -2936,9 +2936,60 @@ with torch.no_grad():
 
   <div class="card" style="margin: 1.2rem 0; border-left: 4px solid var(--accent2);">
     <h4>2. 没有混合精度训练（BF16 + FP32 主权重）</h4>
-    <p><strong>minGPT 中：</strong> 整个模型默认是 FP32。没有 autocast、GradScaler 或主权重副本。</p>
+    <p><strong>minGPT 中：</strong> 整个模型默认是 FP32。没有 autocast、低精度计算路径或 FP32 主权重副本。</p>
     <p><strong>生产影响：</strong> 加速 1.5-3 倍，内存减半（BF16 使用 2 字节而不是 4 字节）。没有它，训练 10B+ 模型不仅太慢，而且 A100 tensor core 也被浪费了。</p>
-    <p><strong>为什么省略？</strong> 混合精度涉及 amp、GradScaler、all-reduce 精度策略——对于理解"下一个词预测 + 梯度下降"来说，纯粹是工程噪声。</p>
+    <p><strong>图：混合精度不是“全都变低精度”，而是把不同工作放在合适精度里（看图说话）</strong></p>
+    <p>最容易误解的是：生产训练不是把所有东西粗暴改成 BF16。通常是前向/反向的大矩阵乘法用 BF16 加速、省显存；参数更新、优化器状态、某些归一化或累加仍保留 FP32 稳定性。BF16 比 FP16 动态范围更大，通常不需要 FP16 那种 loss scaling，但仍然需要清楚哪些张量用什么精度。</p>
+    <div class="diagram" style="text-align:center;padding:1rem">
+      <svg width="760" height="340" viewBox="0 0 760 340" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="12">
+        <defs>
+          <linearGradient id="bf16_bg" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#f8fafc"/>
+            <stop offset="100%" stop-color="#f5f3ff"/>
+          </linearGradient>
+          <marker id="bf16_arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0,8 3,0 6" fill="#64748b"/>
+          </marker>
+        </defs>
+        <rect x="0" y="0" width="760" height="340" rx="10" fill="url(#bf16_bg)" stroke="#cbd5e1"/>
+
+        <text x="40" y="36" fill="#0f172a" font-size="16" font-weight="700">混合精度的核心：算得快，存得省，更新仍要稳</text>
+
+        <rect x="42" y="78" width="190" height="176" rx="12" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+        <text x="137" y="106" text-anchor="middle" fill="#1d4ed8" font-weight="700">minGPT 教学版</text>
+        <rect x="72" y="134" width="130" height="36" rx="7" fill="#dbeafe" stroke="#60a5fa"/>
+        <text x="137" y="157" text-anchor="middle" fill="#1e3a8a">全部 FP32</text>
+        <rect x="72" y="184" width="130" height="36" rx="7" fill="#dbeafe" stroke="#60a5fa"/>
+        <text x="137" y="207" text-anchor="middle" fill="#1e3a8a">代码最清楚</text>
+        <text x="137" y="238" text-anchor="middle" fill="#334155">4 字节 / 数值</text>
+
+        <line x1="232" y1="166" x2="292" y2="166" stroke="#64748b" stroke-width="2" marker-end="url(#bf16_arrow)"/>
+
+        <rect x="300" y="64" width="418" height="204" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+        <text x="509" y="92" text-anchor="middle" fill="#0f172a" font-weight="700">生产混合精度版</text>
+
+        <rect x="330" y="122" width="116" height="58" rx="9" fill="#dcfce7" stroke="#16a34a"/>
+        <text x="388" y="145" text-anchor="middle" fill="#166534" font-weight="700">BF16 计算</text>
+        <text x="388" y="164" text-anchor="middle" fill="#14532d">matmul / attention</text>
+
+        <rect x="474" y="122" width="116" height="58" rx="9" fill="#fef3c7" stroke="#f59e0b"/>
+        <text x="532" y="145" text-anchor="middle" fill="#92400e" font-weight="700">FP32 主权重</text>
+        <text x="532" y="164" text-anchor="middle" fill="#78350f">稳定更新</text>
+
+        <rect x="618" y="122" width="74" height="58" rx="9" fill="#ede9fe" stroke="#8b5cf6"/>
+        <text x="655" y="145" text-anchor="middle" fill="#5b21b6" font-weight="700">优化器</text>
+        <text x="655" y="164" text-anchor="middle" fill="#6d28d9">状态</text>
+
+        <line x1="446" y1="151" x2="474" y2="151" stroke="#64748b" stroke-width="2" marker-end="url(#bf16_arrow)"/>
+        <line x1="590" y1="151" x2="618" y2="151" stroke="#64748b" stroke-width="2" marker-end="url(#bf16_arrow)"/>
+
+        <rect x="340" y="210" width="328" height="34" rx="8" fill="#f8fafc" stroke="#94a3b8"/>
+        <text x="504" y="232" text-anchor="middle" fill="#334155">BF16：2 字节，动态范围接近 FP32，通常不需要 FP16 loss scaling</text>
+
+        <text x="380" y="306" text-anchor="middle" fill="#64748b">minGPT 省略它，是为了让你先看懂训练逻辑；生产系统加入它，是为了把同样逻辑跑得更大、更快。</text>
+      </svg>
+    </div>
+    <p><strong>为什么省略？</strong> 混合精度涉及 amp/autocast、主权重与优化器状态、all-reduce 精度策略；如果是 FP16，还常常涉及 GradScaler。对于理解"下一个词预测 + 梯度下降"来说，这些都是工程噪声。</p>
   </div>
 
   <div class="card" style="margin: 1.2rem 0; border-left: 4px solid var(--accent2);">
