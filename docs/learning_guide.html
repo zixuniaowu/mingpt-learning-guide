@@ -4455,6 +4455,65 @@ iteration 49: loss 0.3385
       <strong>自己试试：</strong>将模式改为 <code>y = (x * 2) % 5</code>，看看它是否还能学会。乘法比加法需要更多步吗？
     </div>
   </div>
+
+  <p><strong>图：实验 4 的 50 步训练到底发生了什么（看图说话）</strong></p>
+  <p>这不是“Trainer 神奇地让模型变聪明”。每一步都在重复同一个闭环：Dataset 给出 <code>x,y</code>，模型预测 <code>logits</code>，交叉熵把预测和 <code>y</code> 比出 loss，反向传播算梯度，优化器更新参数。loss 下降说明模型越来越会预测下一个数字。</p>
+  <div class="diagram" style="text-align:center;padding:1rem">
+    <svg width="760" height="370" viewBox="0 0 760 370" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="12">
+      <defs>
+        <linearGradient id="tiny_train_bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#f8fafc"/>
+          <stop offset="100%" stop-color="#f0fdf4"/>
+        </linearGradient>
+        <marker id="tiny_train_arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0,8 3,0 6" fill="#64748b"/>
+        </marker>
+      </defs>
+      <rect x="0" y="0" width="760" height="370" rx="10" fill="url(#tiny_train_bg)" stroke="#cbd5e1"/>
+
+      <text x="40" y="36" fill="#0f172a" font-size="16" font-weight="700">Trainer.run() 每一轮都在执行同一个学习闭环</text>
+
+      <rect x="42" y="74" width="126" height="58" rx="10" fill="#dbeafe" stroke="#2563eb"/>
+      <text x="105" y="96" text-anchor="middle" fill="#1d4ed8" font-weight="700">Dataset</text>
+      <text x="105" y="116" text-anchor="middle" fill="#1e3a8a">x, y 批次</text>
+
+      <line x1="168" y1="103" x2="218" y2="103" stroke="#64748b" stroke-width="2" marker-end="url(#tiny_train_arrow)"/>
+      <rect x="224" y="74" width="126" height="58" rx="10" fill="#dcfce7" stroke="#16a34a"/>
+      <text x="287" y="96" text-anchor="middle" fill="#166534" font-weight="700">model(x, y)</text>
+      <text x="287" y="116" text-anchor="middle" fill="#14532d">logits + loss</text>
+
+      <line x1="350" y1="103" x2="400" y2="103" stroke="#64748b" stroke-width="2" marker-end="url(#tiny_train_arrow)"/>
+      <rect x="406" y="74" width="126" height="58" rx="10" fill="#fef3c7" stroke="#f59e0b"/>
+      <text x="469" y="96" text-anchor="middle" fill="#92400e" font-weight="700">loss.backward()</text>
+      <text x="469" y="116" text-anchor="middle" fill="#78350f">计算梯度</text>
+
+      <line x1="532" y1="103" x2="582" y2="103" stroke="#64748b" stroke-width="2" marker-end="url(#tiny_train_arrow)"/>
+      <rect x="588" y="74" width="126" height="58" rx="10" fill="#ede9fe" stroke="#8b5cf6"/>
+      <text x="651" y="96" text-anchor="middle" fill="#5b21b6" font-weight="700">optimizer.step()</text>
+      <text x="651" y="116" text-anchor="middle" fill="#6d28d9">更新参数</text>
+
+      <path d="M651 132 C648 170, 105 170, 105 132" fill="none" stroke="#64748b" stroke-width="2" stroke-dasharray="7 5" marker-end="url(#tiny_train_arrow)"/>
+      <text x="380" y="166" text-anchor="middle" fill="#64748b">重复 50 次，参数一点点变得更会预测 y</text>
+
+      <rect x="54" y="210" width="292" height="110" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+      <text x="200" y="235" text-anchor="middle" fill="#0f172a" font-weight="700">loss 输出在说什么？</text>
+      <polyline points="82,292 128,278 174,260 220,242 266,228 320,218" fill="none" stroke="#16a34a" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="82" cy="292" r="4" fill="#16a34a"/><circle cx="128" cy="278" r="4" fill="#16a34a"/><circle cx="174" cy="260" r="4" fill="#16a34a"/><circle cx="220" cy="242" r="4" fill="#16a34a"/><circle cx="266" cy="228" r="4" fill="#16a34a"/><circle cx="320" cy="218" r="4" fill="#16a34a"/>
+      <text x="86" y="308" fill="#334155">1.60</text>
+      <text x="296" y="210" fill="#166534" font-weight="700">0.34</text>
+      <text x="200" y="314" text-anchor="middle" fill="#64748b">越低 = 下一个 token 预测越准</text>
+
+      <rect x="414" y="210" width="292" height="110" rx="12" fill="#f0fdf4" stroke="#86efac"/>
+      <text x="560" y="235" text-anchor="middle" fill="#14532d" font-weight="700">生成结果说明什么？</text>
+      <g fill="#dcfce7" stroke="#16a34a">
+        <rect x="442" y="258" width="28" height="28" rx="5"/><rect x="478" y="258" width="28" height="28" rx="5"/><rect x="514" y="258" width="28" height="28" rx="5"/><rect x="550" y="258" width="28" height="28" rx="5"/><rect x="586" y="258" width="28" height="28" rx="5"/><rect x="622" y="258" width="28" height="28" rx="5"/>
+      </g>
+      <text x="456" y="277" text-anchor="middle" fill="#166534">0</text><text x="492" y="277" text-anchor="middle" fill="#166534">1</text><text x="528" y="277" text-anchor="middle" fill="#166534">2</text><text x="564" y="277" text-anchor="middle" fill="#166534">3</text><text x="600" y="277" text-anchor="middle" fill="#166534">4</text><text x="636" y="277" text-anchor="middle" fill="#166534">0</text>
+      <text x="560" y="314" text-anchor="middle" fill="#14532d">模型学到了循环规则，而不是背一个自然语言解释。</text>
+
+      <text x="380" y="350" text-anchor="middle" fill="#64748b">对应源码：Trainer.run() 里就是 batch → forward → backward → clip → step → repeat。</text>
+    </svg>
+  </div>
 </section>
 <!-- ===== CONCLUSION ===== -->
 <section id="conclusion">
