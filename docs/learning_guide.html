@@ -3179,6 +3179,59 @@ with torch.no_grad():
     <li>注意力稀疏性：模型实际上只关注少数关键 token。</li>
     <li>训练数据中长序列稀缺。</li>
   </ul>
+
+  <p><strong>图：长上下文真正贵在哪里——KV Cache 会随 token 数线性长大（看图说话）</strong></p>
+  <p>很多人以为“上下文变长”只是 prompt 里文字更多。真实推理时，每生成一个 token，模型都要为每一层保存这个 token 的 Key 和 Value。上下文从 4k 到 128k，不是多读一点文本而已，而是 KV cache 直接按 token 数增长。</p>
+  <div class="diagram" style="text-align:center;padding:1rem">
+    <svg width="760" height="360" viewBox="0 0 760 360" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif" font-size="12">
+      <defs>
+        <linearGradient id="kv_growth_bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#f8fafc"/>
+          <stop offset="100%" stop-color="#eef2ff"/>
+        </linearGradient>
+        <marker id="kv_growth_arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0,8 3,0 6" fill="#64748b"/>
+        </marker>
+      </defs>
+      <rect x="0" y="0" width="760" height="360" rx="10" fill="url(#kv_growth_bg)" stroke="#cbd5e1"/>
+
+      <text x="38" y="36" fill="#0f172a" font-size="16" font-weight="700">生成第 t 个 token 时，历史 token 的 K/V 会被缓存下来</text>
+
+      <rect x="42" y="70" width="250" height="88" rx="10" fill="#111827" stroke="#334155"/>
+      <text x="167" y="96" text-anchor="middle" fill="#f8fafc" font-weight="700">输入上下文</text>
+      <rect x="70" y="116" width="34" height="28" rx="5" fill="#1e3a8a" stroke="#60a5fa"/><text x="87" y="135" text-anchor="middle" fill="#dbeafe">t0</text>
+      <rect x="112" y="116" width="34" height="28" rx="5" fill="#1e3a8a" stroke="#60a5fa"/><text x="129" y="135" text-anchor="middle" fill="#dbeafe">t1</text>
+      <rect x="154" y="116" width="34" height="28" rx="5" fill="#1e3a8a" stroke="#60a5fa"/><text x="171" y="135" text-anchor="middle" fill="#dbeafe">t2</text>
+      <text x="208" y="135" fill="#cbd5e1">... t127999</text>
+
+      <line x1="292" y1="114" x2="350" y2="114" stroke="#64748b" stroke-width="2" marker-end="url(#kv_growth_arrow)"/>
+
+      <rect x="354" y="58" width="350" height="124" rx="10" fill="#ffffff" stroke="#cbd5e1"/>
+      <text x="529" y="84" text-anchor="middle" fill="#0f172a" font-weight="700">每一层都要保存历史 K/V</text>
+      <rect x="382" y="106" width="84" height="34" rx="6" fill="#dbeafe" stroke="#2563eb"/>
+      <text x="424" y="127" text-anchor="middle" fill="#1d4ed8">Layer 0</text>
+      <rect x="482" y="106" width="84" height="34" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+      <text x="524" y="127" text-anchor="middle" fill="#166534">Layer 1</text>
+      <rect x="582" y="106" width="84" height="34" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+      <text x="624" y="127" text-anchor="middle" fill="#92400e">Layer N</text>
+      <text x="529" y="162" text-anchor="middle" fill="#475569">每层缓存：K[token] + V[token]，长度随上下文增长</text>
+
+      <text x="48" y="218" fill="#0f172a" font-weight="700">直觉公式</text>
+      <rect x="48" y="236" width="286" height="58" rx="8" fill="#eff6ff" stroke="#93c5fd"/>
+      <text x="191" y="260" text-anchor="middle" fill="#1e3a8a" font-weight="700">KV cache ≈ layers × tokens × 2 × hidden</text>
+      <text x="191" y="280" text-anchor="middle" fill="#334155">2 是 K 和 V；tokens 越长，缓存越大</text>
+
+      <text x="400" y="218" fill="#0f172a" font-weight="700">为什么工程方法有用</text>
+      <rect x="400" y="236" width="310" height="82" rx="8" fill="#f8fafc" stroke="#cbd5e1"/>
+      <text x="420" y="260" fill="#334155">PagedAttention：把 KV cache 像内存页一样管理</text>
+      <text x="420" y="282" fill="#334155">Sliding Window：只保留最近窗口，放弃完整历史</text>
+      <text x="420" y="304" fill="#334155">GQA/MQA：减少 K/V 头数，让缓存变小</text>
+
+      <text x="380" y="344" text-anchor="middle" fill="#64748b">minGPT 没实现 KV cache，所以更适合学习 forward；生产推理必须认真管理这块内存。</text>
+    </svg>
+  </div>
+  <p>这也解释了为什么长上下文不是单靠把 <code>block_size</code> 调大就能解决：位置编码、注意力计算和 KV cache 都会变成瓶颈。工程优化的核心目标，就是让“历史信息可用”这件事不要把显存吃光。</p>
+
   <p>常见的工程方法：</p>
   <ul>
     <li>FlashAttention-2/3：大幅降低内存带宽需求。</li>
