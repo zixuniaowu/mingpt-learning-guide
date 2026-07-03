@@ -1,68 +1,119 @@
-# minGPT 中文可执行学习书
+<p align="center">
+  <img src="docs/assets/readme-hero.png" alt="minGPT 中文可执行学习书：Notebook、Transformer 图解与训练循环" width="100%">
+</p>
 
-这是一个把 Karpathy 的 [minGPT](https://github.com/karpathy/minGPT) 改造成中文学习材料的仓库。
+<h1 align="center">minGPT 中文可执行学习书</h1>
 
-核心不是“又一个 GPT 代码仓库”，而是一份可以边读、边看图、边运行 Notebook 的学习书：
+<p align="center">
+  从 Karpathy 的 minGPT 出发，用中文图解、Notebook 实验和源码注释，把 GPT 从 Dataset 到 Attention、训练、生成、Agent Loop 一次讲透。
+</p>
+
+<p align="center">
+  <a href="https://htmlpreview.github.io/?https://github.com/zixuniaowu/mingpt-learning-guide/blob/main/docs/learning_guide.html"><b>在线预览 HTML</b></a>
+  ·
+  <a href="docs/learning_guide.html"><b>本地 HTML 文件</b></a>
+  ·
+  <a href="learning_guide.ipynb"><b>运行 Notebook</b></a>
+  ·
+  <a href="projects/adder/adder.py"><b>研究 Adder</b></a>
+  ·
+  <a href="mingpt/model.py"><b>读 GPT 源码</b></a>
+</p>
+
+<p align="center">
+  <img alt="Python" src="https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white">
+  <img alt="PyTorch" src="https://img.shields.io/badge/PyTorch-Learning-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white">
+  <img alt="Notebook" src="https://img.shields.io/badge/Jupyter-Executable%20Book-F37626?style=for-the-badge&logo=jupyter&logoColor=white">
+  <img alt="License" src="https://img.shields.io/badge/License-MIT-111827?style=for-the-badge">
+</p>
+
+---
+
+## 这不是“又一个 minGPT fork”
+
+原始 [minGPT](https://github.com/karpathy/minGPT) 是一个极简、干净、教育导向的 GPT 实现。这个仓库把它改造成一本可以边读边运行的中文学习书：
 
 ```text
-docs/learning_guide.html
+HTML 书页 -> Notebook 实验台 -> minGPT 源码
 ```
 
-## 先看五张图
+你先在 HTML 里看图建立直觉，再到 Notebook 里运行真实代码，最后回到 `mingpt/model.py`、`mingpt/trainer.py` 和 `projects/adder/adder.py` 验证实现。
 
-这几张图是 HTML 里的核心学习方式：先看图，把概念看懂，再运行 Notebook。
+## 一眼看懂它好在哪里
 
-### Adder：哪里会产生梯度？
+| 你通常卡住的地方 | 这本书怎么解决 |
+| --- | --- |
+| `Dataset` 为什么返回 `(x, y)`？ | 用 Adder 的 token 表格和 loss mask 图直接画出来 |
+| `-1` 为什么不参与 loss？ | 红色屏蔽区 / 绿色梯度区分开解释 |
+| Attention 的 Q/K/V 太抽象 | 从“我想找什么 / 我有什么 / 我能提供什么”讲到公式 |
+| `generate()` 为什么一格一格生成？ | 用自回归循环图解释每一步如何追加 token |
+| GPT 源码看不进去 | 先看 `(B, T, C)` 数据流，再逐行对照 `forward()` |
+| Coding Agent 和 GPT 有什么关系？ | 把 Codex、Claude Code、Loop Engineering 放回“下一个 token + 工具反馈循环” |
 
-![Adder 数据构造与梯度屏蔽](docs/assets/readme-adder-mask.svg)
+## 最值得先看的 6 张图
 
-### 一次训练：从 Dataset 到参数更新
+| Adder 梯度屏蔽 | 一次训练循环 |
+| --- | --- |
+| ![Adder 数据构造与梯度屏蔽](docs/assets/readme-adder-mask.svg) | ![一次训练的数据流](docs/assets/readme-training-loop.svg) |
 
-![一次训练的数据流](docs/assets/readme-training-loop.svg)
+| GPT 前向传播 | Tokenization 到 Embedding |
+| --- | --- |
+| ![GPT 前向传播](docs/assets/readme-gpt-flow.svg) | ![Tokenization 到 embedding 的路径](docs/assets/readme-token-flow.svg) |
 
-### GPT 前向传播：从 token IDs 到 logits
+| 自回归生成 | 从 HTML 到 Notebook |
+| --- | --- |
+| ![自回归生成循环](docs/assets/readme-generation-loop.svg) | <b>HTML 负责理解，Notebook 负责执行，源码负责验证。</b><br><br>这就是这本书的核心学习方式。 |
 
-![GPT 前向传播](docs/assets/readme-gpt-flow.svg)
+## 快速开始
 
-### Tokenization：文字怎么变成模型能算的向量？
+```bash
+git clone https://github.com/zixuniaowu/mingpt-learning-guide.git
+cd mingpt-learning-guide
 
-![Tokenization 到 embedding 的路径](docs/assets/readme-token-flow.svg)
+pip install torch numpy
+pip install -e .
+```
 
-### Generate：为什么是一格一格生成？
+打开中文学习书：
 
-![自回归生成循环](docs/assets/readme-generation-loop.svg)
+```powershell
+start .\docs\learning_guide.html
+```
 
-这份 HTML 是本仓库的主角。它把 minGPT 里最容易卡住的概念拆成三件事：
+打开配套 Notebook：
 
-1. **看图说话**：先用图理解数据流、mask、attention、loss、训练循环。
-2. **运行代码**：再到 `learning_guide.ipynb` 里执行对应 cell。
-3. **回到源码**：最后对照 `mingpt/model.py`、`trainer.py`、`projects/adder/adder.py` 看真实实现。
+```bash
+jupyter notebook learning_guide.ipynb
+```
 
-## 为什么做这本书
+如果要运行 `generate.ipynb` 的 GPT-2 生成示例，需要额外安装：
 
-很多 GPT 教程会直接跳到 Transformer 公式，但初学者真正困惑的地方通常更基础：
+```bash
+pip install transformers
+```
 
-- 为什么 Dataset 要返回 `(x, y)`？
-- `x` 和 `y` 到底差在哪一格？
-- adder 项目里为什么答案要反着写？
-- `-1` 为什么能让某些位置不产生 loss？
-- 模型到底“看到了什么”，又“在哪些位置被惩罚”？
-- attention 的 Q/K/V 到底是在干什么？
-- `generate.ipynb` 为什么一运行就下载模型，甚至把硬盘占满？
+`generate.ipynb` 已加大模型下载保护，默认不会误下 `gpt2-xl` 这类超大模型。
 
-所以这份学习书的重点不是堆术语，而是把这些问题逐个画出来、跑出来、解释清楚。
+## 推荐阅读路线
 
-## 最值得看的经典部分
+1. **先读 HTML**：`docs/learning_guide.html`
+2. **再跑 Notebook**：`learning_guide.ipynb`
+3. **看 Adder**：`projects/adder/adder.py`
+4. **读 GPT 主体**：`mingpt/model.py`
+5. **看训练循环**：`mingpt/trainer.py`
+6. **最后看生成**：`generate.ipynb`
 
-### 1. Adder 数据构造与梯度屏蔽：看图说话版
+## 经典章节
 
-HTML 里最关键的一张图是：
+### 1. Adder：训练到底训练了哪里？
+
+HTML 里最关键的图是：
 
 ```text
 图：Adder 数据构造与梯度屏蔽示意图（看图说话版）
 ```
 
-它解释了：
+它解释了五件事：
 
 - 上方 `x` 是模型真正读到的 token
 - 下方 `y` 是模型要预测的 token
@@ -72,47 +123,9 @@ HTML 里最关键的一张图是：
 
 这是理解 `projects/adder/adder.py` 的入口，也是理解“训练到底训练了哪里”的入口。
 
-HTML 正文里还有更完整的逐行解释：为什么真实代码里没有 `+` 和 `=`，为什么 `x` 要丢掉最后一位，为什么 `y` 要先右移再把前面位置设为 `-1`。
+### 2. GPT 前向传播：从 token IDs 到 logits
 
-### 2. Adder 完整训练一步的数据流
-
-```text
-图：Adder 完整训练一步的数据流（看图说话）
-```
-
-这张图把一次训练拆成：
-
-```text
-Dataset -> model(x) -> logits -> loss -> backward -> optimizer.step()
-```
-
-读完这节，再看 `Trainer.run()` 就不会觉得训练循环是黑盒。
-
-这部分特别适合和 `mingpt/trainer.py` 一起看：你会看到训练不是“魔法”，就是反复执行 forward、loss、backward、step。
-
-### 3. 损失地形图与反向传播
-
-HTML 里有两个非常适合建立直觉的部分：
-
-```text
-经典可视化：损失地形图（Loss Landscape）
-图：反向传播“倒推责任”示意图
-```
-
-它们解释：
-
-- loss 为什么像一个地形
-- 学习率太大/太小会发生什么
-- `loss.backward()` 为什么是在“倒推责任”
-- optimizer 为什么能让参数朝更低 loss 的方向移动
-
-### 4. GPT 整体前向传播架构图
-
-```text
-图：GPT 整体前向传播架构示意图
-```
-
-这张图把 GPT 的主路径串起来：
+核心路径被画成一条主线：
 
 ```text
 token IDs
@@ -123,13 +136,11 @@ token IDs
 -> logits
 ```
 
-它适合和 `mingpt/model.py` 的 `forward()` 函数一起看。
+读源码时先抓住一个维度不变量：中间层大多保持 `(B, T, n_embd)`，最后 `lm_head` 才把它变成 `(B, T, vocab_size)`。
 
-如果你只想抓住 GPT 的主干，先记住这一句话：中间层一直保持 `(B, T, n_embd)`，最后 `lm_head` 才把它变成 `(B, T, vocab_size)`。
+### 3. Attention：先有直觉，再看公式
 
-### 5. 自注意力机制与交互式注意力小工具
-
-HTML 中 attention 部分从直觉开始：
+这本书不会一上来只扔公式。它先把 Q/K/V 翻译成：
 
 - Query：我想找什么信息？
 - Key：我这里有什么信息？
@@ -141,177 +152,54 @@ HTML 中 attention 部分从直觉开始：
 Attention(Q, K, V) = softmax(QK^T / sqrt(d_k)) V
 ```
 
-还有一个交互式注意力小工具，可以逐步看：
+HTML 里还有交互式注意力小工具，可以逐步看 `QK^T -> causal mask -> softmax -> weighted V`。
+
+### 4. 生成：为什么模型能回答很长？
+
+`generate()` 不是一次吐出整篇文章，而是循环执行：
 
 ```text
-QK^T -> causal mask -> softmax -> weighted V
+读当前上下文 -> 预测下一个 token -> 追加到末尾 -> 再预测下一个
 ```
 
-### 6. 生成、预训练权重与磁盘提醒
+这也是理解 ChatGPT、Codex、Claude Code 的第一性原理：回答很长，不是模型一次输出一个“完整答案对象”，而是 token-by-token 自回归生成。
 
-`generate.ipynb` 已经改成安全版：
+### 5. Agent Loop：从 minGPT 走到 Codex / Claude Code
 
-```python
-model_type = 'gpt2'
-allow_large_models = False
-```
+后半部分新增了现代 Coding Agent 章节：
 
-它会阻止你不小心下载 `gpt2-xl` 这种数 GB 的大模型。学习生成流程时，用 `gpt2` 就够了。
+- Context Engineering：这一轮模型该看什么
+- Loop Engineering：多轮 agent 如何自己推进
+- Codex `/goal`：把一次请求变成持续任务
+- Claude Code workflow：skills、hooks、subagents、Agent SDK、GitHub Actions
+- Codex CLI / Claude Code CLI：`/skills`、subagents、hooks、MCP、验证闭环怎么用
 
-HTML 里还新增了两张适合反复看的图：
-
-```text
-图：自回归生成是一格一格往右写（看图说话）
-图：minGPT 重新算历史，生产系统缓存 K/V
-```
-
-第一张解释 `generate()` 为什么每次只预测一个 token；第二张解释为什么 minGPT 的教学实现清楚但慢，真实线上推理通常会用 KV cache。
-
-### 7. 幻觉：错误分支如何一步步锁定
-
-HTML 里新增了：
-
-```text
-图：幻觉不是突然出现的，是错误分支被一步步锁定（看图说话）
-```
-
-这部分把“幻觉”重新放回 minGPT 的第一性原理：模型每一步只是基于已经生成的 token 预测下一个 token。早期一个事实 token 错了，后续上下文就会被污染，模型为了保持前文一致性，可能继续生成越来越具体但错误的细节。
-
-### 8. 项目与实验：不是跑完，而是形成闭环
-
-HTML 还把 `demo.ipynb`、`projects/adder`、`projects/chargpt` 和 Notebook 实验串成学习路线：
-
-```text
-图：minGPT 三个项目分别训练你哪块能力（看图说话）
-图：每个实验都按同一个闭环来读（看图说话）
-```
-
-这两张图强调：先预测输出，再运行 cell，再解释形状和数值，最后改参数观察变化。这样 Notebook 才不是脚本，而是这本可执行学习书的一页。
-
-### 9. Scaling、位置编码与架构演进
-
-后半本书继续把抽象概念画出来：
-
-```text
-图：Scaling 不是只把模型变大，而是在参数、数据、计算之间配平
-图：没有位置、绝对位置、相对位置到底差在哪
-图：Attention 是“全局查表”，SSM 是“状态接力”
-```
-
-这几张图对应从 minGPT 走向现代 LLM 的关键问题：为什么不能只堆参数、为什么 GPT 需要位置感、为什么长上下文会卡在注意力和 KV cache 上。
-
-### 10. 参数量与优化器：把数字讲清楚
-
-中段章节补了两个很容易被忽略但非常关键的机制：
-
-```text
-图：为什么 gpt-nano 的“主体很小”，总参数却接近 500 万
-图：为什么优化器要把参数分成 decay / no_decay
-```
-
-第一张解释 `number of parameters: 2.55M` 和 `总参数量: 4,958,736` 为什么不是矛盾；第二张解释为什么线性层权重要做 weight decay，而 bias、LayerNorm、embedding 通常不做。
-
-此外，HTML 里还补了：
-
-```text
-图：CfgNode 像控制面板，决定模型、训练器和数据如何配合
-图：学完这本书以后，下一步怎么走
-```
-
-它们把“怎么调实验”和“学完后怎么继续”从文字建议变成了路线图。
-
-## 怎么打开这本书
-
-最简单方式：
-
-1. 下载或 clone 仓库
-2. 用浏览器打开 `docs/learning_guide.html`
-3. 用 Jupyter 打开 `learning_guide.ipynb`
-4. HTML 负责阅读和看图，Notebook 负责运行代码
-
-这本书的执行方式是三件套：
-
-```text
-HTML 书页 -> Notebook 实验台 -> minGPT 源码
-```
-
-先在 HTML 里看图建立直觉，再在 Notebook 里执行真实输出，最后回到 `mingpt/model.py`、`mingpt/trainer.py` 或 `projects/adder/adder.py` 验证实现。
-
-如果你在本地仓库根目录：
-
-```powershell
-start .\docs\learning_guide.html
-jupyter notebook .\learning_guide.ipynb
-```
-
-英文版在：
-
-```text
-docs/learning_guide_en.html
-```
+这部分会帮你把“GPT 只是在预测下一个 token”和“Agent 能读文件、改代码、跑测试”连接起来。
 
 ## 仓库结构
 
 ```text
 docs/
 ├── learning_guide.html       # 中文 HTML 学习书，主入口
-├── learning_guide.css        # HTML 样式
-├── learning_guide.js         # 交互式图表与复制代码功能
 ├── learning_guide_en.html    # 英文版
-├── check_lang.py             # 文档检查辅助脚本
-└── translate_sections.py     # 翻译/同步辅助脚本
+├── learning_guide.css        # 样式
+├── learning_guide.js         # 交互图与复制代码
+└── assets/                   # README 与文档图片
 
 learning_guide.ipynb          # 配合 HTML 运行的练习 Notebook
 generate.ipynb                # 安全版 GPT-2 生成示例
 demo.ipynb                    # minGPT 原 demo 的学习版
-run_notebook.py               # Notebook 运行辅助脚本
 
 mingpt/
-├── model.py                  # Transformer/GPT 主体，已加入大量教学注释
-├── bpe.py                    # GPT-2 BPE tokenizer
+├── model.py                  # GPT / Transformer 主体，带中文教学注释
 ├── trainer.py                # 训练循环
+├── bpe.py                    # GPT-2 BPE tokenizer
 └── utils.py                  # 配置与工具函数
 
 projects/
 ├── adder/                    # GPT 学加法，重点看数据构造和 loss mask
 └── chargpt/                  # 字符级语言模型
 ```
-
-## 环境准备
-
-建议 Python 3.10+。
-
-只学习小模型训练：
-
-```bash
-pip install torch numpy
-pip install -e .
-```
-
-如果要运行 `generate.ipynb` 加载 GPT-2：
-
-```bash
-pip install transformers
-```
-
-## 推荐阅读顺序
-
-1. `docs/learning_guide.html`
-2. `learning_guide.ipynb`
-3. `projects/adder/adder.py`
-4. `mingpt/model.py`
-5. `mingpt/trainer.py`
-6. `generate.ipynb`
-
-## 这个版本改了什么
-
-- 增加中文 HTML 可执行学习书
-- 增加配套练习 Notebook
-- 给 minGPT 核心源码加入中文教学注释
-- 重写 Dataset、Adder、attention、训练循环等解释
-- 修正 BPE token ID、gpt-nano head 数、RoPE 示例、Chinchilla scaling law 等容易误导的内容
-- 给 `generate.ipynb` 加入大模型下载保护
-- README 改成面向这份中文学习书的项目说明
 
 ## 轻量检查
 
@@ -329,16 +217,17 @@ python -m unittest discover tests
 
 注意：部分测试可能涉及 Hugging Face GPT-2 权重加载，可能触发模型下载。
 
-## 上游项目
+## 为什么值得 star
 
-原始 minGPT：
+如果你想真正看懂 GPT，而不是只背 “Transformer、Attention、Embedding” 这些词，这个仓库适合长期收藏：
 
-```text
-https://github.com/karpathy/minGPT
-```
+- 它从 minGPT 这种小而清楚的代码开始
+- 它用图解释最容易卡住的数据流和 mask
+- 它让你在 Notebook 里看到真实输出
+- 它把现代 Agent 工具重新放回 GPT 第一性原理
 
-本仓库是个人学习注释版，重点是中文图解、Notebook 实验和可读源码。
+## 上游与许可
 
-## License
+原始项目：[karpathy/minGPT](https://github.com/karpathy/minGPT)
 
-MIT
+本仓库是个人中文学习注释版，重点是图解、Notebook 实验和可读源码。License 继承 MIT。
