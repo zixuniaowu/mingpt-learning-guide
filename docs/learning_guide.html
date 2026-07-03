@@ -2921,6 +2921,63 @@ with torch.no_grad():
     </svg>
   </div>
 
+  <p><strong>图：rank r 是 LoRA 的“信息瓶颈”，不是随便取的超参数（看图说话）</strong></p>
+  <p>LoRA 的核心不是把大矩阵拆成两个小矩阵那么简单，而是强迫更新量 <code>ΔW = BA</code> 只能走一个低维通道。<code>A</code> 先把输入特征压到 rank r，<code>B</code> 再把它扩回输出维度。r 越小，越省参数，但能表达的任务变化也越受限。</p>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 760 410" role="img" aria-label="LoRA rank r 如何形成低秩瓶颈，并减少可训练参数量">
+      <defs>
+        <marker id="lora_rank_arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#64748b"/>
+        </marker>
+        <linearGradient id="lora_rank_bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#f8fafc"/>
+          <stop offset="100%" stop-color="#f5f3ff"/>
+        </linearGradient>
+      </defs>
+
+      <rect x="0" y="0" width="760" height="410" rx="12" fill="url(#lora_rank_bg)" stroke="#cbd5e1"/>
+      <text x="30" y="34" fill="#0f172a" font-size="16" font-weight="700">同一个 4096×4096 线性层：全量更新 vs LoRA 低秩更新</text>
+      <text x="30" y="58" fill="#475569" font-size="12">LoRA 假设：任务适配需要的参数变化 ΔW 往往不需要完整 4096 维自由度。</text>
+
+      <rect x="38" y="92" width="274" height="240" rx="12" fill="#fff7ed" stroke="#fdba74"/>
+      <text x="175" y="122" text-anchor="middle" fill="#9a3412" font-weight="700">全参数微调</text>
+      <rect x="89" y="150" width="172" height="128" rx="8" fill="#fed7aa" stroke="#fb923c"/>
+      <text x="175" y="205" text-anchor="middle" fill="#7c2d12" font-size="15" font-weight="700">W</text>
+      <text x="175" y="229" text-anchor="middle" fill="#7c2d12">4096 × 4096</text>
+      <text x="175" y="303" text-anchor="middle" fill="#9a3412" font-weight="700">16,777,216 个可训练参数</text>
+      <text x="175" y="322" text-anchor="middle" fill="#475569" font-size="11">容量最大，但显存和优化器状态都很贵</text>
+
+      <rect x="448" y="92" width="274" height="240" rx="12" fill="#eef2ff" stroke="#c4b5fd"/>
+      <text x="585" y="122" text-anchor="middle" fill="#5b21b6" font-weight="700">LoRA rank = 8</text>
+
+      <rect x="486" y="166" width="70" height="96" rx="8" fill="#ede9fe" stroke="#a78bfa"/>
+      <text x="521" y="207" text-anchor="middle" fill="#5b21b6" font-weight="700">A</text>
+      <text x="521" y="228" text-anchor="middle" fill="#5b21b6" font-size="11">8 × 4096</text>
+
+      <line x1="556" y1="214" x2="586" y2="214" stroke="#64748b" stroke-width="2" marker-end="url(#lora_rank_arrow)"/>
+      <rect x="588" y="142" width="42" height="144" rx="8" fill="#ddd6fe" stroke="#8b5cf6"/>
+      <text x="609" y="204" text-anchor="middle" fill="#4c1d95" font-weight="700">r</text>
+      <text x="609" y="224" text-anchor="middle" fill="#4c1d95" font-size="11">8</text>
+      <text x="609" y="304" text-anchor="middle" fill="#6d28d9" font-size="10">低维瓶颈</text>
+      <line x1="630" y1="214" x2="660" y2="214" stroke="#64748b" stroke-width="2" marker-end="url(#lora_rank_arrow)"/>
+
+      <rect x="662" y="166" width="34" height="96" rx="8" fill="#ede9fe" stroke="#a78bfa"/>
+      <text x="679" y="207" text-anchor="middle" fill="#5b21b6" font-weight="700">B</text>
+      <text x="679" y="228" text-anchor="middle" fill="#5b21b6" font-size="10" transform="rotate(90 679 228)">4096 × 8</text>
+
+      <text x="585" y="303" text-anchor="middle" fill="#5b21b6" font-weight="700">65,536 个可训练参数</text>
+      <text x="585" y="322" text-anchor="middle" fill="#475569" font-size="11">约为全量更新的 1/256</text>
+
+      <line x1="312" y1="212" x2="448" y2="212" stroke="#64748b" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#lora_rank_arrow)"/>
+      <text x="380" y="190" text-anchor="middle" fill="#475569">用低秩 ΔW</text>
+      <text x="380" y="208" text-anchor="middle" fill="#475569">近似完整更新</text>
+
+      <rect x="80" y="356" width="600" height="34" rx="8" fill="#ecfdf5" stroke="#86efac"/>
+      <text x="380" y="378" text-anchor="middle" fill="#14532d" font-size="12">选 rank 的直觉：r 太小可能学不动复杂任务；r 太大更贵且容易过拟合。r=8/16/32 常作为起点。</text>
+    </svg>
+  </div>
+  <p><strong>读图后的判断：</strong>LoRA 适合“让模型换一种回答方式、学一个稳定格式、适应一个领域风格”。如果任务需要大幅改变模型的底层能力，rank 太小的 LoRA 可能不够，这时要提高 rank、覆盖更多模块，或者考虑全参数微调。</p>
+
   <p><strong>LoRA 最佳实践</strong>：</p>
   <ul>
     <li><strong>秩（Rank）</strong>：大多数任务用 8-64。更高秩 = 更大容量但收益递减。r=16 是个好的默认值。</li>
