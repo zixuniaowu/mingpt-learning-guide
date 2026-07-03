@@ -48,6 +48,9 @@
     <a href="#evaluation">22. 大模型评价体系</a>
     <a href="#agent-engineering">23. 深度思考、长期记忆与 Coding Agent 系统</a>
     <a href="#loop-engineering">↳ Loop Engineering</a>
+    <a href="#loop-harness">↳ Loop Harness 实现</a>
+    <a href="#codex-goal-loop">↳ Codex /goal</a>
+    <a href="#claude-workflow-loop">↳ Claude workflow</a>
     <div class="nav-group">工具、实践与总结</div>
     <a href="#utils">工具与配置</a>
     <a href="#projects">经典项目解析</a>
@@ -4513,6 +4516,79 @@ for x_t in input_sequence:    # 顺序扫描
 
   <p><strong>和 minGPT 的关系：</strong>minGPT 的 <code>generate()</code> 是 token 级循环：每次生成一个 token。Coding agent 的 loop 是任务级循环：每次完成一个观察-行动步骤。两者底层都还是“给定上下文预测下一个 token”，只是外层系统把 token 输出解释成了工具调用、文件修改、测试命令和停止判断。</p>
 
+  <h4>为什么会出现 Loop Engineering？</h4>
+  <p>早期使用 LLM 的方式很像聊天：人写一个 prompt，模型回一段文字；如果不满意，人再补一句。这个模式适合问答，但不适合修复一个真实仓库里的 bug。真实任务通常需要多步：</p>
+  <ul>
+    <li>先读相关文件，而不是凭空猜代码结构。</li>
+    <li>改完后运行测试，而不是只生成补丁文本。</li>
+    <li>测试失败后要读错误日志，再决定下一步。</li>
+    <li>遇到权限、冲突、需求不明确时要停下来，而不是无限尝试。</li>
+  </ul>
+  <p>所以工程重点从“我怎么写一句更好的 prompt”变成了“我怎么设计一个能自己推进、能验证、能停止的工作循环”。这就是 Loop Engineering 的实际含义。</p>
+
+  <h4>一个 coding agent 的真实 loop 长什么样？</h4>
+  <p>以“修复一个失败测试”为例，好的 loop 不是直接让模型猜答案，而是把任务拆成可观察的循环：</p>
+  <ol>
+    <li><strong>目标</strong>：让 <code>python -m pytest tests/test_tokenizer.py</code> 通过。</li>
+    <li><strong>组装上下文</strong>：读取失败日志、相关测试、被测模块、项目规则。</li>
+    <li><strong>行动</strong>：模型提出最小修改，工具实际编辑文件。</li>
+    <li><strong>观察</strong>：重新运行测试，拿到通过/失败/新错误。</li>
+    <li><strong>更新上下文</strong>：如果失败，把新错误日志加入下一轮上下文。</li>
+    <li><strong>停止</strong>：测试通过就汇报；连续失败或需要产品决策就停下来问用户。</li>
+  </ol>
+  <p>这个过程看起来像“智能”，但拆开看，大部分可靠性来自外层 loop：它让模型不断接触真实反馈，而不是停留在一次生成的自信文本里。</p>
+
+  <p><strong>图：坏 loop 和好 loop 的差别，不在模型，而在反馈是否闭合（看图说话）</strong></p>
+  <p>坏 loop 只有“生成”和“再生成”，没有真实世界反馈；好 loop 每一轮都把工具结果带回来，让下一轮模型调用基于新证据行动。</p>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 760 360" role="img" aria-label="坏 loop 和好 loop 的对比：无验证的重复生成 vs 带观察和停止条件的闭环">
+      <defs>
+        <marker id="loop_compare_arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#64748b"/>
+        </marker>
+        <linearGradient id="loop_compare_bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#f8fafc"/>
+          <stop offset="100%" stop-color="#eef2ff"/>
+        </linearGradient>
+      </defs>
+
+      <rect x="0" y="0" width="760" height="360" rx="12" fill="url(#loop_compare_bg)" stroke="#cbd5e1"/>
+      <text x="30" y="34" fill="#0f172a" font-size="16" font-weight="700">同样是“循环”，差别在于有没有真实反馈和停止条件</text>
+
+      <rect x="34" y="72" width="318" height="240" rx="12" fill="#fef2f2" stroke="#f87171"/>
+      <text x="193" y="102" text-anchor="middle" fill="#991b1b" font-size="15" font-weight="700">坏 loop：只是在反复生成</text>
+      <rect x="78" y="132" width="100" height="44" rx="8" fill="#fee2e2" stroke="#ef4444"/>
+      <text x="128" y="159" text-anchor="middle" fill="#991b1b">写 prompt</text>
+      <line x1="178" y1="154" x2="218" y2="154" stroke="#64748b" stroke-width="2" marker-end="url(#loop_compare_arrow)"/>
+      <rect x="220" y="132" width="100" height="44" rx="8" fill="#fee2e2" stroke="#ef4444"/>
+      <text x="270" y="159" text-anchor="middle" fill="#991b1b">模型输出</text>
+      <path d="M270 176 C270 224, 128 224, 128 176" fill="none" stroke="#ef4444" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#loop_compare_arrow)"/>
+      <text x="193" y="250" text-anchor="middle" fill="#7f1d1d">没有读文件、没有跑测试、没有预算</text>
+      <text x="193" y="272" text-anchor="middle" fill="#7f1d1d">失败时只会换一种说法继续猜</text>
+
+      <rect x="408" y="72" width="318" height="240" rx="12" fill="#ecfdf5" stroke="#22c55e"/>
+      <text x="567" y="102" text-anchor="middle" fill="#166534" font-size="15" font-weight="700">好 loop：每轮都有证据回流</text>
+      <rect x="442" y="128" width="80" height="40" rx="8" fill="#dbeafe" stroke="#60a5fa"/>
+      <text x="482" y="153" text-anchor="middle" fill="#1d4ed8">上下文</text>
+      <line x1="522" y1="148" x2="552" y2="148" stroke="#64748b" stroke-width="2" marker-end="url(#loop_compare_arrow)"/>
+      <rect x="554" y="128" width="80" height="40" rx="8" fill="#dcfce7" stroke="#22c55e"/>
+      <text x="594" y="153" text-anchor="middle" fill="#166534">模型</text>
+      <line x1="594" y1="168" x2="594" y2="198" stroke="#64748b" stroke-width="2" marker-end="url(#loop_compare_arrow)"/>
+      <rect x="554" y="200" width="80" height="40" rx="8" fill="#fff7ed" stroke="#fb923c"/>
+      <text x="594" y="225" text-anchor="middle" fill="#9a3412">工具</text>
+      <line x1="554" y1="220" x2="524" y2="220" stroke="#64748b" stroke-width="2" marker-end="url(#loop_compare_arrow)"/>
+      <rect x="442" y="200" width="80" height="40" rx="8" fill="#fef3c7" stroke="#f59e0b"/>
+      <text x="482" y="225" text-anchor="middle" fill="#92400e">观察</text>
+      <path d="M482 200 C444 184, 444 164, 482 168" fill="none" stroke="#16a34a" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#loop_compare_arrow)"/>
+      <rect x="638" y="176" width="66" height="40" rx="8" fill="#f8fafc" stroke="#94a3b8"/>
+      <text x="671" y="192" text-anchor="middle" fill="#334155" font-size="10">停止</text>
+      <text x="671" y="207" text-anchor="middle" fill="#334155" font-size="10">条件</text>
+      <line x1="634" y1="148" x2="660" y2="176" stroke="#64748b" stroke-width="2" marker-end="url(#loop_compare_arrow)"/>
+      <text x="567" y="272" text-anchor="middle" fill="#14532d">每一轮都能被日志、测试、diff 校正</text>
+      <text x="567" y="294" text-anchor="middle" fill="#14532d">完成或失败都能明确停下来</text>
+    </svg>
+  </div>
+
   <p>一个可靠的 loop 至少要定义这些工程边界：</p>
   <ul>
     <li><strong>目标状态</strong>：什么叫完成？例如测试通过、页面截图正确、文档已更新、远端已推送。</li>
@@ -4521,6 +4597,155 @@ for x_t in input_sequence:    # 顺序扫描
     <li><strong>上下文管理</strong>：每一轮只带最相关的文件、错误和计划，避免上下文越来越乱。</li>
     <li><strong>安全和成本控制</strong>：限制命令权限、网络访问、token 预算、并行 agent 数和可修改范围。</li>
   </ul>
+
+  <h4>Loop Engineering 和 Context Engineering 怎么分工？</h4>
+  <p>这两个词经常一起出现，但关注点不同。Context Engineering 解决“这一轮模型应该看什么”；Loop Engineering 解决“下一轮什么时候发生，以及根据什么停止”。</p>
+  <table>
+    <tr><th>问题</th><th>Context Engineering</th><th>Loop Engineering</th></tr>
+    <tr><td>模型这轮该读哪些文件？</td><td>负责</td><td>触发读取动作</td></tr>
+    <tr><td>测试失败日志要不要放进下一轮？</td><td>负责压缩和选择</td><td>负责把失败结果带回循环</td></tr>
+    <tr><td>什么时候停止？</td><td>不主要负责</td><td>负责：通过、失败、超预算、需用户决策</td></tr>
+    <tr><td>如何避免越跑越乱？</td><td>控制上下文质量</td><td>控制循环次数、验证门槛和恢复策略</td></tr>
+    <tr><td>如何防止成本爆炸？</td><td>减少无关上下文</td><td>限制 token、工具次数、并行 agent 数</td></tr>
+  </table>
+
+  <h4>Loop 的四种常见形态</h4>
+  <table>
+    <tr><th>Loop 类型</th><th>典型场景</th><th>关键风险</th><th>工程解法</th></tr>
+    <tr><td>修复 loop</td><td>测试失败、lint 失败、构建失败</td><td>反复改同一处</td><td>记录尝试历史；连续失败后停下汇报</td></tr>
+    <tr><td>研究 loop</td><td>查资料、读论文、比较方案</td><td>越查越散，忘记目标</td><td>每轮写小结；限制来源和轮数</td></tr>
+    <tr><td>生成-评审 loop</td><td>写代码后让另一个 agent review</td><td>互相说服但没有真实验证</td><td>以测试、类型检查、截图为最终裁判</td></tr>
+    <tr><td>定时自动化 loop</td><td>每天检查 issue、CI、文档变化</td><td>误操作和通知噪声</td><td>只读默认；写操作需要权限和审计</td></tr>
+  </table>
+
+  <h4>把 Loop 写成伪代码</h4>
+  <p>如果把 coding agent 的 loop 写成程序，大概是这样：</p>
+<pre><code>goal = "修复失败测试"
+state = collect_initial_context(goal)
+
+for step in range(max_steps):
+    context = build_context(goal, state)       # 规则、文件、日志、记忆
+    action = model(context)                    # 下一步：读文件/改代码/跑测试/提问
+    observation = run_tool_or_apply(action)    # 真实执行
+    state = update_state(state, observation)   # 把结果放回循环
+
+    if verified_done(state):                   # 测试通过、diff 合理
+        return report_success(state)
+    if should_stop(state):                     # 超预算、连续失败、需要用户判断
+        return report_blocked_or_ask(state)</code></pre>
+  <p>这里的重点不是代码语法，而是控制权的位置：模型负责提出下一步，loop harness 负责执行、记录、验证和停止。可靠的 agent 不能把这四件事全交给模型自觉。</p>
+
+  <h4 id="loop-harness">底层到底怎么实现？Loop Harness 的组成</h4>
+  <p>真实产品里不会只写一个 <code>while True</code>。一般会有一个外层 <strong>loop harness</strong>：它不是大模型本身，而是围绕模型的一套运行时系统，负责保存状态、调用工具、做权限判断、把观察结果塞回下一轮上下文，并决定什么时候停。</p>
+  <table>
+    <tr><th>部件</th><th>负责什么</th><th>对应到学习时该怎么理解</th></tr>
+    <tr><td>Goal / Task State</td><td>保存目标、当前进度、尝试历史、剩余预算</td><td>告诉循环“为什么继续”和“什么时候算完成”</td></tr>
+    <tr><td>Context Builder</td><td>选择规则、文件、日志、记忆、上轮观察结果</td><td>决定这一轮模型到底能看见什么</td></tr>
+    <tr><td>Policy / Permissions</td><td>限制哪些命令能跑、哪些文件能改、是否要用户批准</td><td>防止 agent 为了完成目标而越界操作</td></tr>
+    <tr><td>Tool Router</td><td>把模型输出映射成读文件、编辑、运行测试、搜索文档等动作</td><td>让模型不只是“说”，而是能通过工具改变外部世界</td></tr>
+    <tr><td>Observer</td><td>收集命令输出、测试结果、diff、截图、错误信息</td><td>把真实反馈带回循环，纠正模型猜测</td></tr>
+    <tr><td>Verifier</td><td>判断测试是否通过、页面是否正确、目标是否达成</td><td>给循环一个外部裁判，而不是靠模型自我感觉</td></tr>
+    <tr><td>Scheduler</td><td>决定立即继续、稍后继续、并行执行，或定时唤醒</td><td>把一次对话扩展成持续任务或后台任务</td></tr>
+    <tr><td>Memory / Trace</td><td>记录长期偏好、项目规则、执行轨迹、失败原因</td><td>让下一次任务少走弯路，也方便审计</td></tr>
+  </table>
+
+  <p><strong>图：Loop Harness 把“会说话的模型”包成“能做事的 agent”（看图说话）</strong></p>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 760 390" role="img" aria-label="Loop Harness 的组成：目标状态、上下文构造、模型、工具路由、观察、验证、策略和记忆">
+      <defs>
+        <marker id="harness_arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#475569"/>
+        </marker>
+        <linearGradient id="harness_bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#f8fafc"/>
+          <stop offset="100%" stop-color="#ecfeff"/>
+        </linearGradient>
+      </defs>
+      <rect x="0" y="0" width="760" height="390" rx="12" fill="url(#harness_bg)" stroke="#cbd5e1"/>
+      <text x="30" y="34" fill="#0f172a" font-size="16" font-weight="700">Loop Harness：模型只负责下一步判断，外层系统负责闭环控制</text>
+
+      <rect x="290" y="142" width="180" height="88" rx="14" fill="#dcfce7" stroke="#22c55e" stroke-width="2"/>
+      <text x="380" y="176" text-anchor="middle" fill="#166534" font-size="17" font-weight="700">LLM</text>
+      <text x="380" y="202" text-anchor="middle" fill="#166534" font-size="12">预测下一步：解释 / 工具调用 / 停止判断</text>
+
+      <rect x="44" y="74" width="150" height="54" rx="10" fill="#dbeafe" stroke="#60a5fa"/>
+      <text x="119" y="106" text-anchor="middle" fill="#1d4ed8" font-size="13">Goal / Task State</text>
+      <line x1="194" y1="101" x2="286" y2="154" stroke="#475569" stroke-width="2" marker-end="url(#harness_arrow)"/>
+
+      <rect x="44" y="160" width="150" height="54" rx="10" fill="#e0e7ff" stroke="#818cf8"/>
+      <text x="119" y="192" text-anchor="middle" fill="#3730a3" font-size="13">Context Builder</text>
+      <line x1="194" y1="187" x2="286" y2="187" stroke="#475569" stroke-width="2" marker-end="url(#harness_arrow)"/>
+
+      <rect x="44" y="246" width="150" height="54" rx="10" fill="#f1f5f9" stroke="#94a3b8"/>
+      <text x="119" y="278" text-anchor="middle" fill="#334155" font-size="13">Policy / Permissions</text>
+      <line x1="194" y1="273" x2="292" y2="222" stroke="#475569" stroke-width="2" marker-end="url(#harness_arrow)"/>
+
+      <rect x="566" y="84" width="150" height="54" rx="10" fill="#fff7ed" stroke="#fb923c"/>
+      <text x="641" y="116" text-anchor="middle" fill="#9a3412" font-size="13">Tool Router</text>
+      <line x1="474" y1="166" x2="562" y2="120" stroke="#475569" stroke-width="2" marker-end="url(#harness_arrow)"/>
+
+      <rect x="566" y="170" width="150" height="54" rx="10" fill="#fef3c7" stroke="#f59e0b"/>
+      <text x="641" y="202" text-anchor="middle" fill="#92400e" font-size="13">Observer</text>
+      <line x1="566" y1="197" x2="474" y2="198" stroke="#475569" stroke-width="2" marker-end="url(#harness_arrow)"/>
+
+      <rect x="566" y="256" width="150" height="54" rx="10" fill="#fce7f3" stroke="#f472b6"/>
+      <text x="641" y="288" text-anchor="middle" fill="#9d174d" font-size="13">Verifier / Stop</text>
+      <line x1="562" y1="283" x2="446" y2="232" stroke="#475569" stroke-width="2" marker-end="url(#harness_arrow)"/>
+
+      <rect x="288" y="304" width="184" height="44" rx="10" fill="#ffffff" stroke="#94a3b8"/>
+      <text x="380" y="331" text-anchor="middle" fill="#334155" font-size="13">Memory / Trace / Budget</text>
+      <path d="M380 304 C270 270, 270 116, 380 142" fill="none" stroke="#0f766e" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#harness_arrow)"/>
+      <path d="M472 326 C540 326, 590 316, 620 306" fill="none" stroke="#0f766e" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#harness_arrow)"/>
+    </svg>
+  </div>
+
+  <h4 id="loop-architecture">现在有哪些架构在支持 Loop Engineering？</h4>
+  <p>不同产品名字不一样，但背后的工程形态很接近。你可以按下面这张表理解，不要被品牌名迷惑。</p>
+  <table>
+    <tr><th>架构形态</th><th>它解决的问题</th><th>典型机制</th></tr>
+    <tr><td>交互式单 agent</td><td>一边聊天一边读文件、改代码、跑命令</td><td>终端/IDE agent、工具调用、权限提示、diff 预览</td></tr>
+    <tr><td>Goal-driven loop</td><td>用户给一个持续目标，agent 围绕目标自动推进</td><td>目标状态、进度条、暂停/继续、完成判断</td></tr>
+    <tr><td>Plan mode</td><td>先形成计划，再允许写文件或执行风险动作</td><td>只读探索、任务拆解、用户确认、再进入执行循环</td></tr>
+    <tr><td>Skills / Workflows</td><td>把常用多步流程沉淀成可复用能力</td><td><code>SKILL.md</code>、命令模板、检查清单、动态上下文</td></tr>
+    <tr><td>Hooks / Lifecycle gates</td><td>在工具调用前后自动检查或阻断</td><td>PreToolUse、PostToolUse、Stop hooks、策略脚本、HTTP 审计</td></tr>
+    <tr><td>Subagents / Multi-agent</td><td>把研究、审查、验证等支线任务隔离出去</td><td>独立上下文窗口、专用提示词、受限工具、结果摘要回传</td></tr>
+    <tr><td>Automation / Heartbeat</td><td>让任务定时唤醒，适合监控、跟进、定期检查</td><td>计划任务、后台运行、收件箱报告、归档无事发生的 run</td></tr>
+    <tr><td>SDK / CI / GitHub Actions</td><td>把 agent loop 嵌入工程流水线</td><td>程序化调用、PR/Issue 触发、CI 验证、日志和权限配置</td></tr>
+  </table>
+
+  <h4 id="codex-goal-loop">Codex 的 <code>/goal</code> 算不算 Loop Engineering？</h4>
+  <p>算，而且是很典型的 <strong>goal-driven loop</strong> 产品入口。它不是让模型权重“突然更聪明”，而是给当前线程挂上一个持续目标，让 Codex 在多轮工作中围绕这个目标推进、记录进展，并在完成、暂停或需要更多输入时停下来。官方手册里还建议：如果目标一开始说不清楚，可以先用 <code>/plan</code> 把成功标准梳理清楚，再设置 <code>/goal</code>。</p>
+  <table>
+    <tr><th>Codex 机制</th><th>在 loop 里对应什么</th><th>学习时怎么理解</th></tr>
+    <tr><td><code>/goal</code></td><td>Goal / Task State + 停止条件</td><td>把“一次请求”升级成“持续任务”</td></tr>
+    <tr><td><code>/plan</code></td><td>Planner / 只读探索阶段</td><td>先弄清楚任务边界，再开始改动</td></tr>
+    <tr><td><code>AGENTS.md</code></td><td>Context Builder 的稳定输入</td><td>项目规则、命令、风格约定会进入上下文</td></tr>
+    <tr><td>Skills / Plugins</td><td>Reusable workflow</td><td>把常用流程封装成可反复调用的能力</td></tr>
+    <tr><td>Hooks / Rules / Permissions</td><td>Policy + lifecycle gates</td><td>规定哪些动作可做，哪些动作必须拦截或确认</td></tr>
+    <tr><td>Automations</td><td>Scheduler / Heartbeat</td><td>让任务按时间或事件重新启动，而不是等人手动提醒</td></tr>
+    <tr><td>Subagents</td><td>Parallel workers</td><td>把研究、验证、审查等支线工作放到独立上下文里</td></tr>
+    <tr><td><code>codex exec</code> / SDK / GitHub Action</td><td>Programmatic loop</td><td>把 Codex 的能力嵌进脚本、CI 或平台工作流</td></tr>
+  </table>
+  <p>如果你的学习目标是理解 agent，不要只问“提示词怎么写”。更关键的问题是：目标存在哪里？下一轮怎么触发？工具结果怎么进入上下文？什么条件会让它停？这些就是 <code>/goal</code> 背后的 Loop Engineering 问题。</p>
+
+  <h4 id="claude-workflow-loop">Claude Code 的 workflow 怎么对应？</h4>
+  <p>Claude Code 这边更常见的说法是 workflow、skills、hooks、subagents、Agent SDK 和 GitHub Actions。它们不是同一个层级：workflow 是“怎么做事”的配方；skills 是可复用的流程模块；hooks 是生命周期拦截器；subagents 是隔离上下文的工作线程；Agent SDK 和 GitHub Actions 则把这个 loop 放进程序或 CI 里。</p>
+  <table>
+    <tr><th>Claude Code 机制</th><th>对应的 loop 能力</th><th>例子</th></tr>
+    <tr><td>Common workflows</td><td>人类可读的任务配方</td><td>探索代码库、修 bug、重构、写测试、创建 PR</td></tr>
+    <tr><td>Skills / slash skills</td><td>可复用 workflow</td><td><code>/debug</code>、<code>/code-review</code>、<code>/loop</code> 这类提示驱动流程</td></tr>
+    <tr><td>Hooks</td><td>生命周期自动化和验证门槛</td><td>工具调用前审计；Stop 前自动确认测试是否通过</td></tr>
+    <tr><td>Subagents</td><td>隔离上下文的专用 worker</td><td>让一个 subagent 做代码审查，主线程只接收摘要</td></tr>
+    <tr><td>Plan before editing</td><td>计划阶段</td><td>先读代码和提出计划，再动文件</td></tr>
+    <tr><td>Worktrees / parallel sessions</td><td>并行 loop 的隔离环境</td><td>多个任务同时跑，但各自修改不同 worktree</td></tr>
+    <tr><td>Agent SDK</td><td>自定义 loop runtime</td><td>用 Python/TypeScript 程序化创建能读文件、跑命令、改代码的 agent</td></tr>
+    <tr><td>GitHub Actions</td><td>PR/Issue 触发的后台 loop</td><td>在 issue 或 PR 里 <code>@claude</code>，让它分析、实现、修复或创建 PR</td></tr>
+  </table>
+  <p>所以可以这样对比：Codex 的 <code>/goal</code> 更像“把当前线程变成一个有目标的持续任务”；Claude Code 的 workflow 生态更像“把常见循环拆成 skills、hooks、subagents、SDK、GitHub Actions 这些可组合零件”。两者共同点是：LLM 不再只是一次性回答，而是被放进了“工具 + 反馈 + 验证 + 停止条件”的工程循环里。</p>
+
+  <div class="note">
+    <strong>一句话记住：</strong>Prompt Engineering 让一次回答更好；Context Engineering 让一次模型调用看对材料；Loop Engineering 让很多次模型调用能围绕目标持续推进，并且知道何时停。
+  </div>
 
   <h3>1. 什么是"深度思考"？</h3>
   <p>从用户的角度看，"深度思考"意味着模型在回答之前做了更多的中间推理：分解任务、比较方法、规划步骤、检查约束、验证结果。与普通答案的区别不仅仅是输入/输出格式，而是<strong>推理时计算预算</strong>、模型训练、工具编排和上下文管理的综合效果。</p>
