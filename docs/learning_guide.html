@@ -442,6 +442,69 @@ y = chunk[1:]   # [20, 30, 40, 50, 60]</code></pre>
   <p>而在 adder 这种“算法性”任务中，我们必须人为制造这种分离，否则模型学到的就不是算法，而是记忆。</p>
 
   <p>这个思想在今天的大模型时代依然非常重要：我们通过精心构造的指令数据 + 只监督回答部分的损失，来让模型学会“遵循指令”而不是“复述指令”。</p>
+
+  <p><strong>图：聊天模型训练也像 adder，一般只让“助手回答”产生 loss（看图说话）</strong></p>
+  <p>你现在给模型发一句话，模型能回很长，不是因为训练数据里有一个神秘的“输入框”和“输出框”。训练时通常会把一轮对话拼成一整串 token：系统提示、用户问题、助手回答。然后把系统/用户部分的 y 屏蔽掉，只在助手回答部分计算 loss。</p>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 760 390" role="img" aria-label="聊天模型的指令微调数据构造，系统和用户部分被屏蔽，助手回答部分参与损失">
+      <defs>
+        <marker id="chat_mask_arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#64748b"/>
+        </marker>
+        <linearGradient id="chat_mask_bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#f8fafc"/>
+          <stop offset="100%" stop-color="#eef2ff"/>
+        </linearGradient>
+      </defs>
+
+      <rect x="0" y="0" width="760" height="390" rx="12" fill="url(#chat_mask_bg)" stroke="#cbd5e1"/>
+      <text x="30" y="34" fill="#0f172a" font-size="16" font-weight="700">一条聊天样本 = 一整串 token；loss 只监督助手该说的部分</text>
+      <text x="30" y="58" fill="#475569" font-size="12">这和 adder 的 -1 屏蔽是同一个思想：读题部分不给分，答题部分才给分。</text>
+
+      <text x="42" y="96" fill="#334155" font-weight="700">x：模型看到的上下文</text>
+      <rect x="42" y="112" width="118" height="44" rx="8" fill="#e2e8f0" stroke="#94a3b8"/>
+      <text x="101" y="139" text-anchor="middle" fill="#334155" font-size="12">system 规则</text>
+      <rect x="168" y="112" width="154" height="44" rx="8" fill="#dbeafe" stroke="#93c5fd"/>
+      <text x="245" y="139" text-anchor="middle" fill="#1e3a8a" font-size="12">user：解释 LoRA</text>
+      <rect x="330" y="112" width="94" height="44" rx="8" fill="#dcfce7" stroke="#86efac"/>
+      <text x="377" y="139" text-anchor="middle" fill="#166534" font-size="12">LoRA</text>
+      <rect x="432" y="112" width="94" height="44" rx="8" fill="#dcfce7" stroke="#86efac"/>
+      <text x="479" y="139" text-anchor="middle" fill="#166534" font-size="12">是一种</text>
+      <rect x="534" y="112" width="94" height="44" rx="8" fill="#dcfce7" stroke="#86efac"/>
+      <text x="581" y="139" text-anchor="middle" fill="#166534" font-size="12">低秩...</text>
+      <rect x="636" y="112" width="70" height="44" rx="8" fill="#dcfce7" stroke="#86efac"/>
+      <text x="671" y="139" text-anchor="middle" fill="#166534" font-size="12">...</text>
+
+      <line x1="380" y1="166" x2="380" y2="202" stroke="#64748b" stroke-width="2" marker-end="url(#chat_mask_arrow)"/>
+      <text x="410" y="190" fill="#475569" font-size="11">整体右移一格，得到 y</text>
+
+      <text x="42" y="230" fill="#334155" font-weight="700">y：哪些位置参与 loss</text>
+      <rect x="42" y="246" width="118" height="44" rx="8" fill="#fee2e2" stroke="#f87171"/>
+      <text x="101" y="273" text-anchor="middle" fill="#991b1b" font-size="12">-1</text>
+      <rect x="168" y="246" width="154" height="44" rx="8" fill="#fee2e2" stroke="#f87171"/>
+      <text x="245" y="273" text-anchor="middle" fill="#991b1b" font-size="12">-1</text>
+      <rect x="330" y="246" width="94" height="44" rx="8" fill="#bbf7d0" stroke="#22c55e"/>
+      <text x="377" y="273" text-anchor="middle" fill="#14532d" font-size="12">LoRA</text>
+      <rect x="432" y="246" width="94" height="44" rx="8" fill="#bbf7d0" stroke="#22c55e"/>
+      <text x="479" y="273" text-anchor="middle" fill="#14532d" font-size="12">是一种</text>
+      <rect x="534" y="246" width="94" height="44" rx="8" fill="#bbf7d0" stroke="#22c55e"/>
+      <text x="581" y="273" text-anchor="middle" fill="#14532d" font-size="12">低秩...</text>
+      <rect x="636" y="246" width="70" height="44" rx="8" fill="#bbf7d0" stroke="#22c55e"/>
+      <text x="671" y="273" text-anchor="middle" fill="#14532d" font-size="12">&lt;eos&gt;</text>
+
+      <rect x="72" y="320" width="616" height="44" rx="10" fill="#f8fafc" stroke="#cbd5e1"/>
+      <text x="380" y="339" text-anchor="middle" fill="#0f172a" font-size="12" font-weight="700">训练时：一次样本可以包含很长回答；每个助手 token 都是一个“下一个 token 预测”训练点</text>
+      <text x="380" y="357" text-anchor="middle" fill="#475569" font-size="11">所以长回答不是一次预测出来的，而是成百上千个 token 位置共同训练出来的。</text>
+    </svg>
+  </div>
+
+  <p><strong>那为什么回答可以很长？</strong> 因为推理时不是一次生成完整答案，而是循环很多次：先生成第 1 个 token，把它拼回上下文；再生成第 2 个 token；一直重复，直到遇到停止符、达到 <code>max_new_tokens</code>，或系统/API 的输出上限。</p>
+  <ul>
+    <li><strong>训练数据里有长回答</strong>：书籍、网页、代码、论坛、问答、人工标注的指令数据里都有长文本。训练时长回答会被切成很多连续 token，每个 token 都提供一个监督信号。</li>
+    <li><strong>输入有上限</strong>：模型只能看到当前上下文窗口内的 token，比如 4k、8k、32k、128k。超出窗口的内容要截断、摘要或用 RAG 检索。</li>
+    <li><strong>输出也有上限</strong>：调用模型时通常会设置 <code>max_new_tokens</code>。即使模型还能继续写，到了上限也会停。</li>
+    <li><strong>回答长度是学出来 + 控制出来的</strong>：模型从训练数据里学到“这种问题通常要答多长”；系统提示、停止词、采样参数和 API 限制再共同控制最终长度。</li>
+  </ul>
   </div>
 </section>
 
