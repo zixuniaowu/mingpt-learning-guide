@@ -16,6 +16,7 @@
   <nav>
     <div class="nav-group">开始阅读</div>
     <a href="#overview">0. 导读与核心思想</a>
+    <a href="#glossary">术语速查</a>
     <a href="#preface">前言</a>
     <a href="#structure">项目结构</a>
     <a href="#workflow">训练工作流</a>
@@ -184,6 +185,144 @@ pip install transformers  # 加载预训练 GPT-2 权重时需要</code></pre>
 
 
 <!-- ===== GENERATION ===== -->
+
+
+<!-- ===== GLOSSARY ===== -->
+<section id="glossary">
+  <div class="chapter-header">
+    <h2>术语速查：先把“黑话”翻译成人话</h2>
+    <div class="subtitle">读这本书时遇到不熟的词，先来这里查。不要先背定义，先抓住它在流程里干什么。</div>
+  </div>
+
+  <div class="callout important" style="margin:1rem 0;">
+    <strong>读术语的正确方式</strong><br>
+    每个术语都问三个问题：它输入什么？输出什么？它在“预测下一个 token”这条链路里负责哪一步？<br>
+    只要能回答这三个问题，就不用害怕英文名。
+  </div>
+
+  <p><strong>图：所有术语其实都挂在同一条主线上（看图说话）</strong></p>
+  <p>GPT 不是一堆孤立概念。下面这条线把大多数术语串起来：文本先变成 token，再进入 Transformer，输出 logits，经过 softmax 变成概率；训练时用 loss 和梯度改参数，生成时按概率一个 token 一个 token 往后写。</p>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 760 300" role="img" aria-label="GPT 常见术语在文本到训练和生成流程中的位置">
+      <defs>
+        <marker id="glossary_arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#64748b"/>
+        </marker>
+        <linearGradient id="glossary_bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#f8fafc"/>
+          <stop offset="100%" stop-color="#eef2ff"/>
+        </linearGradient>
+      </defs>
+
+      <rect x="0" y="0" width="760" height="300" rx="12" fill="url(#glossary_bg)" stroke="#cbd5e1"/>
+      <text x="32" y="34" fill="#0f172a" font-size="16" font-weight="700">一条主线看懂大多数术语</text>
+
+      <rect x="38" y="78" width="112" height="54" rx="9" fill="#eff6ff" stroke="#93c5fd"/>
+      <text x="94" y="100" text-anchor="middle" fill="#1d4ed8" font-weight="700">文本</text>
+      <text x="94" y="119" text-anchor="middle" fill="#1e3a8a" font-size="11">"I like cats"</text>
+
+      <line x1="150" y1="105" x2="184" y2="105" stroke="#64748b" stroke-width="2" marker-end="url(#glossary_arrow)"/>
+      <rect x="186" y="78" width="112" height="54" rx="9" fill="#f5f3ff" stroke="#c4b5fd"/>
+      <text x="242" y="100" text-anchor="middle" fill="#6d28d9" font-weight="700">Token</text>
+      <text x="242" y="119" text-anchor="middle" fill="#5b21b6" font-size="11">整数 ID 序列</text>
+
+      <line x1="298" y1="105" x2="332" y2="105" stroke="#64748b" stroke-width="2" marker-end="url(#glossary_arrow)"/>
+      <rect x="334" y="78" width="112" height="54" rx="9" fill="#ecfdf5" stroke="#86efac"/>
+      <text x="390" y="100" text-anchor="middle" fill="#166534" font-weight="700">Embedding</text>
+      <text x="390" y="119" text-anchor="middle" fill="#14532d" font-size="11">整数变向量</text>
+
+      <line x1="446" y1="105" x2="480" y2="105" stroke="#64748b" stroke-width="2" marker-end="url(#glossary_arrow)"/>
+      <rect x="482" y="78" width="112" height="54" rx="9" fill="#fff7ed" stroke="#fdba74"/>
+      <text x="538" y="100" text-anchor="middle" fill="#9a3412" font-weight="700">Transformer</text>
+      <text x="538" y="119" text-anchor="middle" fill="#7c2d12" font-size="11">注意力 + MLP</text>
+
+      <line x1="594" y1="105" x2="628" y2="105" stroke="#64748b" stroke-width="2" marker-end="url(#glossary_arrow)"/>
+      <rect x="630" y="78" width="92" height="54" rx="9" fill="#fef2f2" stroke="#fca5a5"/>
+      <text x="676" y="100" text-anchor="middle" fill="#991b1b" font-weight="700">Logits</text>
+      <text x="676" y="119" text-anchor="middle" fill="#7f1d1d" font-size="11">词表打分</text>
+
+      <line x1="676" y1="132" x2="676" y2="174" stroke="#64748b" stroke-width="2" marker-end="url(#glossary_arrow)"/>
+      <rect x="608" y="176" width="136" height="58" rx="9" fill="#fffbeb" stroke="#facc15"/>
+      <text x="676" y="199" text-anchor="middle" fill="#854d0e" font-weight="700">Softmax</text>
+      <text x="676" y="218" text-anchor="middle" fill="#713f12" font-size="11">打分变概率</text>
+
+      <path d="M608 205 C500 260, 282 260, 170 205" fill="none" stroke="#ef4444" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#glossary_arrow)"/>
+      <rect x="40" y="176" width="220" height="58" rx="9" fill="#fee2e2" stroke="#f87171"/>
+      <text x="150" y="199" text-anchor="middle" fill="#991b1b" font-weight="700">训练：Loss → Gradient → Optimizer</text>
+      <text x="150" y="218" text-anchor="middle" fill="#7f1d1d" font-size="11">算错多少，然后改参数</text>
+
+      <rect x="300" y="176" width="220" height="58" rx="9" fill="#dcfce7" stroke="#22c55e"/>
+      <text x="410" y="199" text-anchor="middle" fill="#166534" font-weight="700">生成：Sample → Append → Repeat</text>
+      <text x="410" y="218" text-anchor="middle" fill="#14532d" font-size="11">选一个 token，拼回去继续</text>
+
+      <text x="380" y="276" text-anchor="middle" fill="#475569">读书时先问：这个术语在这条链上属于哪一格？它是在变表示、算分数、算损失，还是控制生成？</text>
+    </svg>
+  </div>
+
+  <h3>基础数据词</h3>
+  <table>
+    <tr><th>术语</th><th>英文</th><th>人话解释</th><th>在书里怎么用</th></tr>
+    <tr><td>词元 / 片段</td><td>token</td><td>模型实际处理的最小文字单位，可能是一个字、一个词、一个空格加词、或一段子词。</td><td>所有输入输出最终都是 token 序列。</td></tr>
+    <tr><td>词元编号</td><td>token ID</td><td>每个 token 对应的整数编号。模型看不到原始文字，只看到这些整数。</td><td><code>[40, 588, 11875]</code> 这类数字。</td></tr>
+    <tr><td>词表</td><td>vocabulary / vocab</td><td>所有 token 的清单。GPT-2 词表大约有 50,257 个 token。</td><td>输出 logits 的最后一维就是 vocab_size。</td></tr>
+    <tr><td>分词</td><td>tokenization</td><td>把文本切成 token ID 的过程。</td><td>BPE 章节讲的就是它。</td></tr>
+    <tr><td>嵌入</td><td>embedding</td><td>把整数 token ID 查表变成向量，让模型能做矩阵运算。</td><td><code>wte</code> 是 token embedding，<code>wpe</code> 是位置 embedding。</td></tr>
+    <tr><td>上下文窗口</td><td>context window</td><td>模型一次最多能看到多少 token。</td><td>超过窗口的历史要截断、摘要或检索。</td></tr>
+    <tr><td>块大小</td><td>block_size</td><td>minGPT 里设置的最大序列长度。</td><td>训练和生成时都不能超过它。</td></tr>
+  </table>
+
+  <h3>模型输出和训练词</h3>
+  <table>
+    <tr><th>术语</th><th>英文</th><th>人话解释</th><th>在书里怎么用</th></tr>
+    <tr><td>原始分数</td><td>logits</td><td>模型对每个候选 token 给出的未归一化分数，还不是概率。</td><td><code>(B, T, vocab_size)</code> 的输出。</td></tr>
+    <tr><td>概率归一化</td><td>softmax</td><td>把一堆分数变成加起来等于 1 的概率。</td><td>注意力里用一次，生成选词时也用一次。</td></tr>
+    <tr><td>损失</td><td>loss</td><td>模型这次猜得有多错的数字评分，越小越好。</td><td>训练就是不断让 loss 降低。</td></tr>
+    <tr><td>交叉熵</td><td>cross entropy</td><td>分类任务常用的 loss：正确答案概率越低，惩罚越大。</td><td>minGPT 用它训练下一个 token。</td></tr>
+    <tr><td>梯度</td><td>gradient</td><td>告诉每个参数应该往哪个方向改，loss 会下降。</td><td><code>loss.backward()</code> 算梯度。</td></tr>
+    <tr><td>反向传播</td><td>backpropagation</td><td>从 loss 反向推回每个参数责任的自动求导过程。</td><td>训练循环的核心步骤。</td></tr>
+    <tr><td>优化器</td><td>optimizer</td><td>根据梯度真正修改参数的工具。</td><td>minGPT 默认用 AdamW。</td></tr>
+    <tr><td>学习率</td><td>learning rate</td><td>每次更新参数时走多大一步。</td><td>太大容易炸，太小学得慢。</td></tr>
+    <tr><td>权重衰减</td><td>weight decay</td><td>让部分权重不要长得过大的一种正则化。</td><td>minGPT 只对线性层权重做。</td></tr>
+    <tr><td>屏蔽损失</td><td>ignore_index / mask</td><td>让某些位置不参与 loss，梯度为 0。</td><td>adder 和聊天训练里都用于“只训练答案部分”。</td></tr>
+  </table>
+
+  <h3>Transformer 结构词</h3>
+  <table>
+    <tr><th>术语</th><th>英文</th><th>人话解释</th><th>在书里怎么用</th></tr>
+    <tr><td>注意力</td><td>attention</td><td>让每个位置决定应该参考前面哪些位置的信息。</td><td>GPT 的核心信息混合机制。</td></tr>
+    <tr><td>查询 / 键 / 值</td><td>Q / K / V</td><td>Q 像“我要找什么”，K 像“我有什么标签”，V 像“真正要拿走的信息”。</td><td>自注意力计算的三组向量。</td></tr>
+    <tr><td>因果遮罩</td><td>causal mask</td><td>禁止当前位置看未来 token。</td><td>保证 GPT 从左到右生成。</td></tr>
+    <tr><td>多头注意力</td><td>multi-head attention</td><td>把注意力分成多个小专家，各自关注不同关系。</td><td><code>n_head</code> 控制头数。</td></tr>
+    <tr><td>残差连接</td><td>residual connection</td><td>把原输入直接加回输出，防止信息和梯度丢失。</td><td><code>x = x + 子层(...)</code>。</td></tr>
+    <tr><td>层归一化</td><td>LayerNorm</td><td>把每个 token 向量的数值范围调稳定。</td><td>minGPT 用 Pre-LN。</td></tr>
+    <tr><td>前馈网络</td><td>MLP / FFN</td><td>每个 token 位置内部的小网络，不跨 token 交流。</td><td>通常先扩到 4 倍维度，再压回来。</td></tr>
+    <tr><td>激活函数</td><td>activation</td><td>给网络加入非线性，否则多层线性层还是线性变换。</td><td>GPT-2/minGPT 用 GELU。</td></tr>
+    <tr><td>语言模型头</td><td>LM head</td><td>把隐藏向量投影成词表大小的 logits。</td><td>最后一步：向每个 token 候选打分。</td></tr>
+  </table>
+
+  <h3>生成、微调和 Agent 词</h3>
+  <table>
+    <tr><th>术语</th><th>英文</th><th>人话解释</th><th>在书里怎么用</th></tr>
+    <tr><td>自回归</td><td>autoregressive</td><td>每次只生成下一个 token，再把它接回上下文继续。</td><td>GPT 生成长回答的方式。</td></tr>
+    <tr><td>温度</td><td>temperature</td><td>控制生成分布有多尖锐。低温更保守，高温更随机。</td><td>作用在 logits 上。</td></tr>
+    <tr><td>Top-k 采样</td><td>top-k sampling</td><td>只从概率最高的 k 个 token 里选。</td><td>控制生成不要跑太偏。</td></tr>
+    <tr><td>KV 缓存</td><td>KV cache</td><td>生成时缓存历史 token 的 Key/Value，避免每步重算全部历史。</td><td>生产推理常用，minGPT 教学版没做。</td></tr>
+    <tr><td>预训练</td><td>pretraining</td><td>在海量文本上学通用语言规律。</td><td>基础模型阶段。</td></tr>
+    <tr><td>微调</td><td>fine-tuning</td><td>在特定任务数据上继续训练，让模型输出风格或格式更贴合任务。</td><td>第 15 章。</td></tr>
+    <tr><td>低秩适配</td><td>LoRA</td><td>冻结大模型，只训练小的低秩旁路矩阵。</td><td>省显存的微调方法。</td></tr>
+    <tr><td>秩</td><td>rank</td><td>LoRA 旁路中间通道的宽度，决定容量和成本。</td><td>r 越大越能学，但越贵。</td></tr>
+    <tr><td>检索增强生成</td><td>RAG</td><td>先从外部文档检索证据，再把证据放进上下文让模型回答。</td><td>适合新知识和公司文档问答。</td></tr>
+    <tr><td>提示词</td><td>prompt</td><td>本轮给模型的任务输入。</td><td>用户问题、指令、示例都可能是 prompt 的一部分。</td></tr>
+    <tr><td>系统提示</td><td>system prompt</td><td>最高优先级规则，规定模型身份、边界和行为方式。</td><td>Agent 章节会和上下文区分。</td></tr>
+    <tr><td>上下文工程</td><td>context engineering</td><td>决定模型这一轮应该看到哪些材料。</td><td>规则、记忆、文件、工具输出的组织。</td></tr>
+    <tr><td>循环工程</td><td>loop engineering</td><td>设计 agent 如何反复观察、行动、验证并停止。</td><td>coding agent 能持续工作的外层机制。</td></tr>
+    <tr><td>工具调用</td><td>tool call</td><td>模型输出一种特殊动作，由外部系统执行。</td><td>读文件、跑测试、搜索、改代码等。</td></tr>
+  </table>
+
+  <div class="note">
+    <strong>建议：</strong>第一次读不要追求一次记住所有术语。每读完一章，回来扫一遍对应表格，把“这个词在流程里做什么”补上即可。
+  </div>
+</section>
 
 
 <!-- ===== PREFACE ===== -->
