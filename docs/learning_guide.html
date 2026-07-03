@@ -111,6 +111,20 @@ jupyter lab learning_guide.ipynb</code></pre>
     4. 改一两个参数（如 <code>block_size</code>、温度、训练步数），看模型行为如何变化。
   </div>
 
+  <h3>HTML 和 Notebook 到底怎么配合？</h3>
+  <p>不要把 HTML 和 Notebook 当成两份重复材料。它们承担不同职责：HTML 负责“讲清楚为什么”，Notebook 负责“让你亲眼看到输出”。最好的读法是：先读 HTML 的图和解释，再去 Notebook 执行对应 cell，最后回到源码确认真实实现。</p>
+  <table>
+    <tr><th>HTML 章节</th><th>对应 Notebook / 源码</th><th>你应该做什么</th></tr>
+    <tr><td>0. 导读与核心思想</td><td><code>learning_guide.ipynb</code> Cell 0-3</td><td>确认环境、导入 PyTorch/minGPT、知道 HTML 不是直接执行环境</td></tr>
+    <tr><td>5. 整体架构与数据流</td><td>Cell 4-10：创建 <code>gpt-nano</code> 并前向传播</td><td>看输入 shape、logits shape，理解 <code>(B,T)</code> 到 <code>(B,T,V)</code></td></tr>
+    <tr><td>6-8. Attention / Block / GPT</td><td><code>mingpt/model.py</code> + Notebook hook cell</td><td>先看图，再用 hooks 打印中间激活，最后追源码</td></tr>
+    <tr><td>13. 训练的本质</td><td>Cell 15-18：SimplePatternDataset + Trainer</td><td>运行训练，观察 loss 下降，把训练循环和 <code>trainer.py</code> 对上</td></tr>
+    <tr><td>14. 自回归生成</td><td>Cell 11-12、19-20 + <code>generate.ipynb</code></td><td>对比未训练生成、训练后生成、GPT-2 预训练生成</td></tr>
+    <tr><td>15. 微调与后续章节</td><td>主要读 HTML + 源码；Notebook 用来做小实验</td><td>这些章节偏概念和工程背景，不要求每段都有 cell</td></tr>
+    <tr><td>工具、项目、动手实验</td><td><code>demo.ipynb</code>、<code>projects/adder</code>、<code>projects/chargpt</code></td><td>把 HTML 里的“看图说话”迁移到真实项目例子里</td></tr>
+  </table>
+  <p>所以当前版本的设计不是“把 ipynb 嵌入 HTML 里直接跑”，而是更稳定的三件套：<strong>HTML 给学习路径，Notebook 给真实输出，源码给最终答案</strong>。后续如果要做网页内执行，可以考虑 JupyterLite/Pyodide，但那会带来依赖、性能和文件系统限制。</p>
+
   <p><strong>图：这本书的执行方式不是“HTML 里直接跑代码”，而是三件事配合（看图说话）</strong></p>
   <p>HTML 是书页，Notebook 是实验台，源码是真实机器。读者每学一个概念，都应该完成同一个闭环：先看图建立直觉，再跑 Notebook 得到真实输出，最后回到源码确认它在 minGPT 里到底怎么实现。</p>
   <div class="diagram" style="background:#252c3d; padding:14px; border-radius:6px;">
@@ -5287,6 +5301,77 @@ spawn 4 个 subagents，分别检查：
 7. 需要人工确认的风险
 
 不要编造没有运行过的测试。</code></pre>
+
+  <h4>完整实例：从“保存设置失败”到 Release</h4>
+  <p>下面用一个真实团队里很常见的小功能/bug 来串完整流程。假设你的 SaaS 产品有一个设置页，用户打开“邮件提醒”后点击保存，页面显示“已保存”，但刷新后开关又变回关闭。团队希望修复这个问题，并在下个小版本发布。</p>
+
+  <table>
+    <tr><th>阶段</th><th>人类输入</th><th>Agent 工作</th><th>可审查产物</th><th>通过标准</th></tr>
+    <tr><td>需求澄清</td><td>PM 提供 bug 报告和用户影响</td><td>把描述改写成 issue，补充复现步骤、验收标准、非目标</td><td>GitHub Issue</td><td>PM 确认“修什么、不修什么”</td></tr>
+    <tr><td>只读调查</td><td>TL 指定仓库和模块边界</td><td>读取设置页、API handler、保存服务、相关测试；列影响范围</td><td>调查摘要</td><td>能指出至少一个可验证假设</td></tr>
+    <tr><td>技术计划</td><td>TL 要求最小修复，不改 API</td><td>提出修复方案、测试计划和风险</td><td>Implementation plan</td><td>TL 批准后才改代码</td></tr>
+    <tr><td>实现</td><td>开发者给 agent 一个小目标</td><td>先写失败测试，再修最小代码，再跑相关测试</td><td>小 diff + 测试输出</td><td>失败测试变绿，现有测试不回归</td></tr>
+    <tr><td>PR</td><td>开发者创建 PR</td><td>生成 PR 描述、风险说明、验证命令；AI reviewer 查高风险问题</td><td>PR + review 评论</td><td>CI 绿，人类 reviewer approve</td></tr>
+    <tr><td>Release</td><td>Release owner 合并到 release 分支</td><td>生成 release note、回滚步骤、发布后观察指标</td><td>Release checklist</td><td>发布门禁全部通过</td></tr>
+    <tr><td>复盘</td><td>团队确认根因</td><td>把“设置保存类 bug”写成 review checklist 或测试模板</td><td>更新后的规则/skill</td><td>下次同类问题更早被发现</td></tr>
+  </table>
+
+  <p><strong>这个实例里的关键不是 agent 写了多少代码，而是每一步都有“输入、动作、产物、通过标准”。</strong> 这比一句“帮我修复设置保存 bug”稳定得多。</p>
+
+<pre><code># Step 1：把模糊 bug 变成 issue
+请先不要修改代码。
+把下面的 bug 报告整理成 GitHub issue：
+- 背景
+- 复现步骤
+- 期望行为 / 实际行为
+- 验收标准
+- 非目标
+- 需要进一步确认的问题
+
+Bug：设置页打开“邮件提醒”后点保存，toast 显示已保存，但刷新后开关恢复关闭。</code></pre>
+
+<pre><code># Step 2：只读调查，不改文件
+请只读分析，不要修改文件。
+调查“邮件提醒保存后刷新丢失”的可能原因。
+
+请输出：
+1. 相关文件和调用链
+2. 前端状态、API 请求、后端持久化分别在哪里
+3. 最可能的 2-3 个根因
+4. 建议先写哪个回归测试
+5. 最小修复方案，不改变 API shape</code></pre>
+
+<pre><code># Step 3：小 diff 实现
+按刚才批准的计划执行。
+要求：
+1. 先添加一个能复现 bug 的测试
+2. 再做最小修复
+3. 运行最小相关测试
+4. 如果测试失败，先解释失败原因再继续改
+5. 最后给出 diff 摘要、测试命令和结果</code></pre>
+
+<pre><code># Step 4：PR 和 Release 准备
+基于当前 diff，生成 PR 描述：
+- 问题是什么
+- 根因是什么
+- 修复了什么
+- 添加/更新了哪些测试
+- 如何验证
+- 风险和回滚方式
+
+然后生成一条面向用户的 release note，不要包含内部实现细节。</code></pre>
+
+  <h4>这个实例如何分别用 Codex / Claude Code 执行？</h4>
+  <table>
+    <tr><th>目标</th><th>Codex 做法</th><th>Claude Code 做法</th></tr>
+    <tr><td>先规划</td><td><code>/plan</code>：要求只读调查、列文件、出方案</td><td>Plan before editing 或 <code>--permission-mode plan</code></td></tr>
+    <tr><td>持续推进</td><td><code>/goal</code>：修复该 bug，并以测试通过为完成条件</td><td>恢复会话 / goal workflow / 后台 session</td></tr>
+    <tr><td>并行调查</td><td>明确要求 spawn subagents：前端、API、测试各一个</td><td>Delegate research to subagents，保持主上下文干净</td></tr>
+    <tr><td>PR review</td><td><code>/review</code> 或 GitHub 上 <code>@codex review</code></td><td><code>/code-review</code> 或 GitHub/CI 集成</td></tr>
+    <tr><td>CI 自动化</td><td>GitHub Action 中用 Codex action 执行固定 prompt</td><td>用 Claude Code 的脚本/CI/SDK 工作流</td></tr>
+  </table>
+
+  <p>官方文档里的共同建议是一致的：给 agent 明确上下文、约束和“Done when”；复杂任务先计划；重复流程沉淀成项目规则、skills 或 hooks；最终用测试、CI、PR review 和 release gate 验证，而不是靠 agent 自我声明完成。</p>
 
   <h4>7. 复盘：把一次经验沉淀成团队资产</h4>
   <p>Agent 真正改变团队效率的地方，不只是这次帮你写了多少代码，而是能不能把重复经验沉淀下来。每次 release 后，团队应该把有效流程变成规则、skill、hook 或模板。</p>
