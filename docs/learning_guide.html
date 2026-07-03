@@ -47,6 +47,7 @@
     <a href="#hallucination">21. 幻觉、对齐与未来方向</a>
     <a href="#evaluation">22. 大模型评价体系</a>
     <a href="#agent-engineering">23. 深度思考、长期记忆与 Coding Agent 系统</a>
+    <a href="#loop-engineering">↳ Loop Engineering</a>
     <div class="nav-group">工具、实践与总结</div>
     <a href="#utils">工具与配置</a>
     <a href="#projects">经典项目解析</a>
@@ -4428,7 +4429,7 @@ for x_t in input_sequence:    # 顺序扫描
     </svg>
   </div>
 
-  <h3>Loop Engineering：从“写提示词”到“设计能自己推进的循环”</h3>
+  <h3 id="loop-engineering">Loop Engineering：从“写提示词”到“设计能自己推进的循环”</h3>
   <p>2026 年以后，很多 coding agent 讨论里开始频繁出现 <strong>Loop Engineering</strong>。它不是新的模型结构，也不是微调方法，而是 agent 产品层的一种工程方式：不要让人每一步都手写提示词，而是设计一个循环，让 agent 围绕目标自己拉取上下文、执行动作、观察结果、验证进展，并在满足停止条件时结束。</p>
 
   <p>它和前面的概念关系很清楚：</p>
