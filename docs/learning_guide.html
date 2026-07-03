@@ -51,6 +51,7 @@
     <a href="#loop-harness">↳ Loop Harness 实现</a>
     <a href="#codex-goal-loop">↳ Codex /goal</a>
     <a href="#claude-workflow-loop">↳ Claude workflow</a>
+    <a href="#codex-claude-cli">↳ Codex / Claude CLI</a>
     <div class="nav-group">工具、实践与总结</div>
     <a href="#utils">工具与配置</a>
     <a href="#projects">经典项目解析</a>
@@ -4945,7 +4946,145 @@ docs/learning_guide.html 第 16 章的当前内容是...
 
   <p>理解 GPT 的基础知识给你在构建、调试和改进 agent 系统方面带来了巨大的优势。minGPT 训练循环中的"预测 → 评分 → 调整"循环在 agent 层级上被镜像为"行动 → 观察 → 重新规划"。</p>
 
-  <h3>6. 如何比较现代 Coding Agent</h3>
+  <h3 id="codex-claude-cli">6. Codex CLI 与 Claude Code CLI：两个主流终端 Agent 怎么用</h3>
+  <p>截至 2026-07-03，终端 coding agent 里最值得重点学习的两个工具是 <strong>Codex CLI</strong> 和 <strong>Claude Code CLI</strong>。它们不是“更大的聊天框”，而是把 LLM 放进终端、仓库、权限系统、工具调用、skills、hooks、subagents 和工作流里。学习它们时，不要先背命令，而要先问：这个功能是在解决 loop 的哪个问题？</p>
+  <p>本机当前检测到的版本是：<code>codex-cli 0.142.5</code>，<code>Claude Code 2.1.41</code>。官方文档会继续变化，尤其 Claude Code 文档里已经提到多个 2.1.1xx 之后才有的能力；如果你本机没有某个命令，先运行 <code>claude update</code> 或查看 <code>/status</code> / <code>claude --version</code>。</p>
+
+  <p><strong>图：两个 CLI 的共同结构，都是“模型 + 工具 + 规则 + 反馈循环”（看图说话）</strong></p>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 760 390" role="img" aria-label="Codex CLI 与 Claude Code CLI 的能力地图：提示词、规则、skills、subagents、hooks、MCP、验证闭环">
+      <defs>
+        <marker id="cli_map_arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#475569"/>
+        </marker>
+        <linearGradient id="cli_map_bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#f8fafc"/>
+          <stop offset="100%" stop-color="#eef2ff"/>
+        </linearGradient>
+      </defs>
+      <rect x="0" y="0" width="760" height="390" rx="12" fill="url(#cli_map_bg)" stroke="#cbd5e1"/>
+      <text x="30" y="34" fill="#0f172a" font-size="16" font-weight="700">Codex CLI / Claude Code CLI：重点不是命令多，而是把任务放进可验证循环</text>
+
+      <rect x="72" y="84" width="230" height="64" rx="12" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+      <text x="187" y="111" text-anchor="middle" fill="#1d4ed8" font-size="15" font-weight="700">Codex CLI</text>
+      <text x="187" y="132" text-anchor="middle" fill="#1e40af" font-size="12">AGENTS.md / /goal / /skills / subagents</text>
+
+      <rect x="458" y="84" width="230" height="64" rx="12" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+      <text x="573" y="111" text-anchor="middle" fill="#166534" font-size="15" font-weight="700">Claude Code CLI</text>
+      <text x="573" y="132" text-anchor="middle" fill="#14532d" font-size="12">CLAUDE.md / skills / agents / workflows</text>
+
+      <rect x="264" y="192" width="232" height="76" rx="14" fill="#111827" stroke="#334155"/>
+      <text x="380" y="222" text-anchor="middle" fill="#f8fafc" font-size="17" font-weight="700">Agent Loop</text>
+      <text x="380" y="246" text-anchor="middle" fill="#cbd5e1" font-size="12">读上下文 → 行动 → 观察 → 验证 → 停止</text>
+
+      <line x1="230" y1="148" x2="320" y2="192" stroke="#475569" stroke-width="2" marker-end="url(#cli_map_arrow)"/>
+      <line x1="530" y1="148" x2="440" y2="192" stroke="#475569" stroke-width="2" marker-end="url(#cli_map_arrow)"/>
+
+      <rect x="42" y="210" width="150" height="48" rx="10" fill="#e0e7ff" stroke="#818cf8"/>
+      <text x="117" y="239" text-anchor="middle" fill="#3730a3" font-size="12">规则文件 / 记忆</text>
+      <line x1="192" y1="234" x2="260" y2="234" stroke="#475569" stroke-width="2" marker-end="url(#cli_map_arrow)"/>
+
+      <rect x="42" y="286" width="150" height="48" rx="10" fill="#fef3c7" stroke="#f59e0b"/>
+      <text x="117" y="315" text-anchor="middle" fill="#92400e" font-size="12">skills / workflows</text>
+      <line x1="192" y1="310" x2="284" y2="262" stroke="#475569" stroke-width="2" marker-end="url(#cli_map_arrow)"/>
+
+      <rect x="568" y="210" width="150" height="48" rx="10" fill="#fff7ed" stroke="#fb923c"/>
+      <text x="643" y="239" text-anchor="middle" fill="#9a3412" font-size="12">tools / MCP / shell</text>
+      <line x1="568" y1="234" x2="500" y2="234" stroke="#475569" stroke-width="2" marker-end="url(#cli_map_arrow)"/>
+
+      <rect x="568" y="286" width="150" height="48" rx="10" fill="#fce7f3" stroke="#f472b6"/>
+      <text x="643" y="315" text-anchor="middle" fill="#9d174d" font-size="12">hooks / permissions</text>
+      <line x1="568" y1="310" x2="476" y2="262" stroke="#475569" stroke-width="2" marker-end="url(#cli_map_arrow)"/>
+
+      <path d="M380 268 C380 324, 214 354, 118 334" fill="none" stroke="#0f766e" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#cli_map_arrow)"/>
+      <path d="M380 268 C380 324, 546 354, 642 334" fill="none" stroke="#0f766e" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#cli_map_arrow)"/>
+      <text x="380" y="366" text-anchor="middle" fill="#475569" font-size="12">每个功能都应服务于一个问题：看对上下文、执行动作、控制风险、验证结果、及时停止。</text>
+    </svg>
+  </div>
+
+  <h4>先看总览：什么时候用哪个能力？</h4>
+  <table>
+    <tr><th>你要做的事</th><th>Codex CLI 里常用</th><th>Claude Code CLI 里常用</th><th>为什么</th></tr>
+    <tr><td>先理解项目，不想改文件</td><td><code>/plan</code> 或直接要求只读分析</td><td><code>--permission-mode plan</code> 或“plan before editing”</td><td>先收集上下文，降低误改风险</td></tr>
+    <tr><td>让一个大任务持续推进</td><td><code>/goal</code></td><td>Goals / background session / workflow</td><td>把一次请求变成带停止条件的长任务</td></tr>
+    <tr><td>重复做同一套流程</td><td><code>/skills</code>、<code>$skill-name</code>、repo/user skills</td><td><code>/skills</code>、<code>/skill-name</code>、<code>.claude/skills</code></td><td>把提示词沉淀成可复用工作流</td></tr>
+    <tr><td>并行调查多个方向</td><td>显式要求 spawn subagents，<code>/agent</code> 查看</td><td>subagents、fork、<code>claude agents</code>、<code>/batch</code></td><td>减少主上下文污染，提高并行探索效率</td></tr>
+    <tr><td>限制危险操作</td><td><code>/permissions</code>、sandbox、rules、hooks</td><td>permission mode、allowed/disallowed tools、hooks</td><td>安全不能只靠自然语言提醒</td></tr>
+    <tr><td>接外部系统或私有数据</td><td><code>/mcp</code>、apps、plugins</td><td><code>claude mcp</code>、plugins、connectors</td><td>让 agent 拿到实时工具和数据</td></tr>
+    <tr><td>验证代码是否真的可用</td><td>运行测试、<code>/diff</code>、<code>/review</code></td><td><code>/run</code>、<code>/verify</code>、<code>/code-review</code></td><td>把“看起来对”变成“真实环境里对”</td></tr>
+  </table>
+
+  <h4>Codex CLI：当前最该掌握的命令地图</h4>
+  <table>
+    <tr><th>命令 / 机制</th><th>什么时候用</th><th>最小用法</th><th>注意点</th></tr>
+    <tr><td><code>/status</code></td><td>确认当前模型、权限、上下文、用量</td><td>任务开始前或异常时先看状态</td><td>先知道 agent 现在能做什么，再让它动手</td></tr>
+    <tr><td><code>/plan</code></td><td>复杂任务、需求不清、改动风险高</td><td><code>/plan 先读代码，提出修改计划，不要改文件</code></td><td>适合先建立上下文和成功标准</td></tr>
+    <tr><td><code>/goal</code></td><td>多步任务要持续推进</td><td><code>/goal 修复失败测试并保持文档同步</code></td><td>目标要可验证；不清楚时先 <code>/plan</code></td></tr>
+    <tr><td><code>/skills</code> / <code>$skill</code></td><td>需要专门流程，例如文档查询、插件创建、图像生成</td><td><code>/skills</code> 浏览；或在提示里写 <code>$skill-name</code></td><td>Codex 只在需要时读取完整 <code>SKILL.md</code>，这叫 progressive disclosure</td></tr>
+    <tr><td><code>/permissions</code></td><td>想切换只读、自动批准、手动批准</td><td>调试前放宽；危险任务前收紧</td><td>权限是产品层安全，不是模型自律</td></tr>
+    <tr><td><code>/agent</code></td><td>有 subagent 在跑，需要查看或切换线程</td><td>打开 agent 线程，检查它读了什么、卡在哪</td><td>subagent 需要你明确要求才会生成</td></tr>
+    <tr><td><code>/hooks</code></td><td>检查生命周期脚本、信任或禁用 hook</td><td>仓库有 hooks 或启动提示需要 review 时使用</td><td>新 hook 或变更 hook 通常需要信任确认</td></tr>
+    <tr><td><code>/mcp</code></td><td>查看外部工具和文档服务是否连上</td><td><code>/mcp</code>，必要时加 verbose</td><td>MCP 是实时工具，不是模型记忆</td></tr>
+    <tr><td><code>/diff</code> / <code>/review</code></td><td>改完代码后审查差异</td><td>先 <code>/diff</code> 看改动，再 <code>/review</code> 找风险</td><td>不要只听 agent 总结，自己也看 diff</td></tr>
+    <tr><td><code>/compact</code></td><td>长会话上下文快满</td><td>让 Codex 总结关键信息后继续</td><td>压缩会丢细节，关键文件/日志可重新读取</td></tr>
+  </table>
+
+  <h4>Codex 的 skills 和 subagents 怎么理解？</h4>
+  <p><strong>Codex skills</strong> 是可复用工作流。一个 skill 是带 <code>SKILL.md</code> 的目录，可以放在仓库、用户、管理员或系统位置。Codex 开始时只看到 skill 的名称、描述和路径；真正触发时才读取完整说明。适合把“每次都要重复说的一套流程”沉淀下来，例如文档查询、代码审查、发布检查、设计规范。</p>
+  <p><strong>Codex subagents</strong> 是并行工作线程。适合把大任务拆成几个互不强依赖的调查或审查方向，例如“安全问题、代码质量、竞态、测试脆弱性各开一个 agent”。Codex 当前版本默认支持 subagent workflow，但只会在你明确要求时生成；每个 subagent 会消耗额外 token 和时间。内置 agent 包括偏通用的 <code>default</code>、偏执行的 <code>worker</code>、偏阅读探索的 <code>explorer</code>。自定义 agent 可以放在 <code>~/.codex/agents/</code> 或项目的 <code>.codex/agents/</code>。</p>
+
+<pre><code># Codex：适合学习的 subagent 提示词
+请 review 当前分支相对 main 的改动。
+spawn 4 个 subagents，分别检查：
+1. 正确性 bug
+2. 安全风险
+3. 测试缺口
+4. 代码是否过度复杂
+等全部返回后，合并成一个按严重程度排序的报告。</code></pre>
+
+  <h4>Claude Code CLI：当前最该掌握的命令地图</h4>
+  <table>
+    <tr><th>命令 / 机制</th><th>什么时候用</th><th>最小用法</th><th>注意点</th></tr>
+    <tr><td><code>claude</code></td><td>进入交互式终端 agent</td><td>在项目根目录运行 <code>claude</code></td><td>会读取项目规则、skills、hooks、MCP 等配置</td></tr>
+    <tr><td><code>claude -p</code></td><td>脚本/CI/一次性查询</td><td><code>claude -p "解释这个函数"</code></td><td>适合管道和自动化，不适合长交互</td></tr>
+    <tr><td><code>claude -c</code> / <code>-r</code></td><td>继续或恢复任务</td><td><code>claude -c</code> 或 <code>claude -r "session"</code></td><td>长任务不要每次从零开始</td></tr>
+    <tr><td><code>claude update</code> / <code>claude install stable</code></td><td>升级到当前稳定版本</td><td>发现命令不存在时先升级</td><td>很多 workflow 能力有最低版本要求</td></tr>
+    <tr><td><code>/skills</code></td><td>列出、过滤、调整 skill 可见性</td><td>输入 <code>/skills</code>，按名称过滤</td><td>直接运行具体 skill 用 <code>/skill-name</code></td></tr>
+    <tr><td><code>/agents</code></td><td>了解或管理 subagent 配置入口</td><td>新版本会提示你让 Claude 创建/管理 agent 文件</td><td>官方文档说明 v2.1.198 后行为有变化</td></tr>
+    <tr><td><code>claude agents</code></td><td>查看后台会话和并行任务</td><td><code>claude agents</code> 或 <code>claude agents --json</code></td><td>这是后台 session 视图，不等同于一个普通 slash command</td></tr>
+    <tr><td><code>/batch</code></td><td>大规模并行改造</td><td><code>/batch migrate src from X to Y</code></td><td>会拆分任务并可能使用 worktrees；先审计划</td></tr>
+    <tr><td><code>/code-review</code> / <code>/simplify</code></td><td>审查 diff、找 bug、做清理</td><td><code>/code-review high --fix</code></td><td>review 关注正确性；simplify 更偏清理</td></tr>
+    <tr><td><code>/run</code> / <code>/verify</code></td><td>启动应用并验证改动</td><td><code>/verify 检查登录页修改是否生效</code></td><td>官方文档说这些 bundled skills 需要较新的 2.1.145+ 版本</td></tr>
+    <tr><td>hooks</td><td>在生命周期点自动检查或拦截</td><td>配置命令、HTTP 或 prompt/agent hook</td><td>适合 enforce，不适合只写建议</td></tr>
+  </table>
+
+  <h4>Claude Code 的 skills 和 subagents 怎么理解？</h4>
+  <p><strong>Claude Code skills</strong> 也是 <code>SKILL.md</code> 工作流。个人 skill 放在 <code>~/.claude/skills/&lt;name&gt;/SKILL.md</code>，项目 skill 放在 <code>.claude/skills/&lt;name&gt;/SKILL.md</code>。你可以让 Claude 自动触发，也可以直接输入 <code>/skill-name</code>。官方 bundled skills 包括 <code>/code-review</code>、<code>/batch</code>、<code>/debug</code>、<code>/loop</code>、<code>/claude-api</code>，以及用于运行和验证应用的 <code>/run</code>、<code>/verify</code>。</p>
+  <p><strong>Claude Code subagents</strong> 更强调“把支线任务放到自己的上下文窗口里”。当一个调查会读很多文件、日志或搜索结果，但主线程只需要结论时，就适合交给 subagent。自定义 subagent 可以放在 <code>~/.claude/agents/</code> 或 <code>.claude/agents/</code>，文件用 YAML frontmatter 声明 <code>name</code>、<code>description</code>、<code>tools</code>、<code>model</code>，正文写系统提示。官方文档还区分了 fork：fork 会继承当前会话上下文；普通 subagent 通常从新上下文开始，只接收委托任务。</p>
+
+<pre><code># Claude Code：创建一个专门的 review subagent
+请帮我创建一个 custom subagent：
+名字 code-reviewer，
+只允许 Read/Grep/Glob，
+模型用 sonnet，
+职责是审查当前 diff 的 correctness、security、missing tests。
+创建后，用它 review 当前改动，并只把高风险问题汇总回来。</code></pre>
+
+  <h4>什么时候不要用 skills 或 subagents？</h4>
+  <table>
+    <tr><th>情况</th><th>不要用什么</th><th>原因</th><th>更好的做法</th></tr>
+    <tr><td>只是问一个简单概念</td><td>不要开 subagent</td><td>额外 token 和延迟没有意义</td><td>直接问，必要时要求引用文件</td></tr>
+    <tr><td>一次性的很小修改</td><td>不要先做复杂 skill</td><td>维护成本高于收益</td><td>直接提示 + 运行测试</td></tr>
+    <tr><td>有危险副作用的流程</td><td>不要允许模型自动触发 skill</td><td>例如 deploy、发消息、删资源</td><td>设为只能用户手动触发，并加权限/hook</td></tr>
+    <tr><td>需要最终正确性判断</td><td>不要让另一个 agent 当唯一裁判</td><td>agent review 仍可能错</td><td>用测试、lint、类型检查、截图、真实运行做最终验证</td></tr>
+    <tr><td>需求本身不清楚</td><td>不要直接并行执行</td><td>多个 agent 会把错误方向放大</td><td>先 plan，明确成功标准和边界</td></tr>
+  </table>
+
+  <div class="note">
+    <strong>一句话记住：</strong>Codex CLI 和 Claude Code CLI 的核心不是“会多少斜杠命令”，而是能否把任务拆成可控 loop：看对上下文、选对工具、限制风险、并行但不污染主上下文、最后用真实验证停止。
+  </div>
+
+  <h3>7. 如何比较现代 Coding Agent</h3>
   <p>coding agent 工具变化很快，GitHub stars、排行榜、许可证、模型支持范围都会频繁变化。因此本书不把这些信息写成固定排名，而是给出一个更稳定的比较框架。评估 Claude Code、Codex CLI、Gemini CLI、OpenCode、Cursor、Windsurf、Continue.dev 等工具时，重点看下面这些维度。</p>
 
   <h4>关键维度</h4>
