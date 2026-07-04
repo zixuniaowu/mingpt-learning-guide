@@ -1,0 +1,6 @@
+{
+  "workbench.editorAssociations": {
+    "*.ipynb": "jupyter-notebook"
+  },
+  "jupyter.askForKernelRestart": false
+}
