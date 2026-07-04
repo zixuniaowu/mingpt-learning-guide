@@ -45,7 +45,14 @@
     <a href="#beyond">20. Limits & Modern Evolution</a>
     <a href="#hallucination">21. Hallucination & Alignment</a>
     <a href="#evaluation">22. LLM Evaluation & Rankings</a>
+    <div class="nav-group">Part 5: AI Agents & Engineering Practice</div>
     <a href="#agent-engineering">23. Thinking, Memory & Coding Agents</a>
+    <a href="#loop-engineering">↳ Loop Engineering</a>
+    <a href="#loop-harness">↳ Loop Harness</a>
+    <a href="#codex-goal-loop">↳ Codex /goal</a>
+    <a href="#claude-workflow-loop">↳ Claude workflow</a>
+    <a href="#codex-claude-cli">↳ Codex / Claude CLI</a>
+    <a href="#team-agent-workflow">↳ Team Agent Workflow</a>
     <div class="nav-group">Practice</div>
     <a href="#utils">Utilities</a>
     <a href="#projects">Projects</a>
@@ -103,6 +110,20 @@ jupyter lab learning_guide.ipynb</code></pre>
     3. Compare the output with the explanation below the card to understand the shapes, values, and where this step fits in the GPT pipeline.<br>
     4. Change one or two parameters, such as <code>block_size</code>, temperature, or training steps, and observe how the model behavior changes.
   </div>
+
+  <h3>How should the HTML and Notebook work together?</h3>
+  <p>Do not treat the HTML and notebook as duplicate materials. They have different jobs: the HTML explains <em>why</em> something works, while the notebook lets you see the actual PyTorch outputs. The best workflow is: read the diagram and explanation in HTML, execute the matching notebook cell, then go back to the source code to confirm the implementation.</p>
+  <table>
+    <tr><th>HTML section</th><th>Notebook / source to use</th><th>What to observe</th></tr>
+    <tr><td>0. Overview &amp; Core Ideas</td><td><code>learning_guide.ipynb</code> cells 0-3</td><td>Environment, imports, device, and whether minGPT is installed correctly</td></tr>
+    <tr><td>5. Architecture &amp; Data Flow</td><td>Cells 4-10: create <code>gpt-nano</code> and run a forward pass</td><td>Input shape, logits shape, and the path from <code>(B,T)</code> to <code>(B,T,V)</code></td></tr>
+    <tr><td>6-8. Attention / Block / GPT</td><td><code>mingpt/model.py</code> + notebook hook cells</td><td>Use hooks to inspect intermediate activations, then map them back to the source modules</td></tr>
+    <tr><td>13. Training</td><td>Cells 15-18: <code>SimplePatternDataset</code> + <code>Trainer</code></td><td>Run training, watch loss decrease, and connect it to <code>trainer.py</code></td></tr>
+    <tr><td>14. Autoregressive Generation</td><td>Cells 11-12, 19-20 + <code>generate.ipynb</code></td><td>Compare untrained generation, trained toy generation, and pretrained GPT-2 generation</td></tr>
+    <tr><td>Fine-tuning and later engineering chapters</td><td>Mainly HTML + source; notebook for small experiments</td><td>These sections are conceptual/engineering-heavy and do not require a cell for every paragraph</td></tr>
+    <tr><td>Projects and Labs</td><td><code>demo.ipynb</code>, <code>projects/adder</code>, <code>projects/chargpt</code></td><td>Apply the same read-run-explain loop to real project examples</td></tr>
+  </table>
+  <p>The current design is intentionally not “embed the ipynb and execute inside HTML”. The more robust setup is a three-part workflow: <strong>HTML gives the learning path, the notebook gives real outputs, and the source code gives the final truth</strong>. Running notebooks directly inside the web page would require JupyterLite/Pyodide or a backend execution service, with dependency, performance, and filesystem tradeoffs.</p>
 
   <div class="card-grid">
     <div class="card">
@@ -2741,6 +2762,55 @@ for x_t in input_sequence:    # sequential scan
     Deep thinking primarily relies on the model allocating more computation and better context organization during inference. Long-term memory, project rules, tool calls, permissions, file I/O, and automated checks are primarily system-level capabilities of the product/CLI/IDE layer. They are typically implemented via retrieval, files, databases, configuration, tool protocols, system prompts, and context injection — not by retraining model weights each time.
   </div>
 
+  <h3 id="loop-engineering">Loop Engineering: from prompts to self-progressing workflows</h3>
+  <p><strong>Loop Engineering</strong> is not a new model architecture or a fine-tuning method. It is a product and systems pattern: instead of asking a person to write a new prompt for every step, you design a loop where an agent keeps moving toward a goal by gathering context, taking actions, observing results, validating progress, and stopping when the job is complete or blocked.</p>
+  <table>
+    <tr><th>Term</th><th>Question it answers</th><th>Typical output</th></tr>
+    <tr><td>Prompt Engineering</td><td>How should this single model call be phrased?</td><td>A clearer request for one round</td></tr>
+    <tr><td>Context Engineering</td><td>What should the model see in this round?</td><td>Relevant files, rules, logs, memories, tool results</td></tr>
+    <tr><td>Loop Engineering</td><td>How should many model calls keep progressing?</td><td>Goal state, tool loop, validation gates, stop conditions</td></tr>
+  </table>
+  <p>A coding agent loop usually looks like this: define a goal, build context, call the model, execute a tool or edit, observe the result, update state, verify, then either continue or stop. This is the task-level cousin of minGPT's token-level <code>generate()</code> loop: both repeatedly use the current context to decide the next step.</p>
+
+  <h4 id="loop-harness">How is it implemented? The Loop Harness</h4>
+  <p>Real products do not just run <code>while True</code>. They usually have an outer <strong>loop harness</strong> around the model. The harness stores task state, builds context, routes tool calls, applies permissions, records observations, verifies outcomes, and decides when to stop.</p>
+  <table>
+    <tr><th>Component</th><th>Responsibility</th><th>How to think about it</th></tr>
+    <tr><td>Goal / Task State</td><td>Objective, progress, attempts, remaining budget</td><td>Why the loop continues and what done means</td></tr>
+    <tr><td>Context Builder</td><td>Select rules, files, logs, memories, previous observations</td><td>What the model can see this round</td></tr>
+    <tr><td>Policy / Permissions</td><td>Limit commands, file writes, network access, approvals</td><td>Prevent goal-seeking from crossing boundaries</td></tr>
+    <tr><td>Tool Router</td><td>Map model output to reads, edits, tests, searches, APIs</td><td>Turn text into actions in the outside world</td></tr>
+    <tr><td>Observer</td><td>Collect command output, test results, diffs, screenshots, errors</td><td>Bring real feedback back into the loop</td></tr>
+    <tr><td>Verifier</td><td>Decide whether tests pass, UI is correct, or goal is done</td><td>An external judge, not model self-confidence</td></tr>
+    <tr><td>Scheduler</td><td>Continue now, run later, fan out, or wake on a schedule</td><td>Turn one chat into an ongoing workflow</td></tr>
+    <tr><td>Memory / Trace</td><td>Record preferences, project rules, execution history, failures</td><td>Make future runs and audits better</td></tr>
+  </table>
+
+  <h4 id="codex-goal-loop">Is Codex <code>/goal</code> Loop Engineering?</h4>
+  <p>Yes. Codex <code>/goal</code> is a concrete product entry point for a goal-driven loop. It does not make the model weights magically smarter; it attaches a persistent objective to the active thread so Codex can keep working across multiple steps, track progress, and stop when the task is complete, paused, or needs more input. For vague goals, the better pattern is to use <code>/plan</code> first, clarify success criteria, then set the goal.</p>
+  <table>
+    <tr><th>Codex mechanism</th><th>Loop component</th><th>Meaning</th></tr>
+    <tr><td><code>/goal</code></td><td>Goal state + stop condition</td><td>Turn a one-off request into a persistent task</td></tr>
+    <tr><td><code>/plan</code></td><td>Planner / read-only exploration</td><td>Understand scope before editing</td></tr>
+    <tr><td><code>AGENTS.md</code></td><td>Stable context input</td><td>Repository rules and verification commands</td></tr>
+    <tr><td>Skills / Plugins</td><td>Reusable workflow</td><td>Package repeated procedures</td></tr>
+    <tr><td>Hooks / Permissions</td><td>Policy and lifecycle gates</td><td>Enforce safety and validation</td></tr>
+    <tr><td>Subagents</td><td>Parallel workers</td><td>Investigate or review in isolated contexts</td></tr>
+    <tr><td>GitHub Action / SDK</td><td>Programmatic loop</td><td>Run agent workflows in CI or scripts</td></tr>
+  </table>
+
+  <h4 id="claude-workflow-loop">How does Claude Code workflow map to this?</h4>
+  <p>Claude Code commonly frames these ideas as workflows, skills, hooks, subagents, SDKs, and GitHub Actions. They are not the same layer: workflows are recipes; skills are reusable workflow modules; hooks are lifecycle gates; subagents are isolated workers; SDKs and GitHub Actions put the loop into programs and CI.</p>
+  <table>
+    <tr><th>Claude Code mechanism</th><th>Loop capability</th><th>Example</th></tr>
+    <tr><td>Common workflows</td><td>Human-readable task recipes</td><td>Explore codebases, fix bugs, refactor, test, create PRs</td></tr>
+    <tr><td>Skills / slash skills</td><td>Reusable workflow</td><td><code>/debug</code>, <code>/code-review</code>, <code>/loop</code>, <code>/batch</code></td></tr>
+    <tr><td>Hooks</td><td>Lifecycle automation and gates</td><td>Audit before tool use; verify before stop</td></tr>
+    <tr><td>Subagents</td><td>Specialized isolated workers</td><td>One subagent reviews security, another checks tests</td></tr>
+    <tr><td>Worktrees / parallel sessions</td><td>Isolated parallel loops</td><td>Several tasks without polluting one working tree</td></tr>
+    <tr><td>Agent SDK / GitHub Actions</td><td>Custom runtime or CI-triggered loop</td><td>Run agent checks on PRs or issues</td></tr>
+  </table>
+
   <p><strong>Figure 16.1: Agent Architecture — The Complete Loop</strong></p>
   <p>A modern coding agent is not a single model invocation — it's a loop: construct context, call the model, execute tools, observe results, and repeat. The model weights handle reasoning and code understanding, while the system layer manages context, tools, memory, and verification.</p>
   <div class="diagram" style="background:#252c3d; padding:12px; border-radius:6px;">
@@ -2875,7 +2945,73 @@ Test results, search results, file line numbers, command output, etc.</code></pr
 
   <p>Understanding the fundamentals of GPT gives you a massive advantage in building, debugging, and improving agent systems. The "predict → score → adjust" cycle from minGPT's training loop is mirrored at the agent level as "act → observe → replan".</p>
 
-  <h3>6. How to Compare Modern Coding Agents</h3>
+  <h3 id="codex-claude-cli">6. Codex CLI and Claude Code CLI: the two terminal agents to understand</h3>
+  <p>As of 2026-07-04, Codex CLI and Claude Code CLI are two of the most important terminal-first coding agents to study. They are not just larger chat boxes; they put the LLM into a repository, terminal, permission system, tool loop, skills, hooks, subagents, and CI workflows.</p>
+  <p>Learn the commands by asking what loop problem each one solves: context, planning, execution, risk control, parallel investigation, verification, or release automation.</p>
+  <table>
+    <tr><th>What you need</th><th>Codex CLI</th><th>Claude Code CLI</th><th>Why</th></tr>
+    <tr><td>Understand before editing</td><td><code>/plan</code> or explicitly request read-only analysis</td><td>Plan-before-editing or <code>--permission-mode plan</code></td><td>Build context before making changes</td></tr>
+    <tr><td>Run a long task toward a target</td><td><code>/goal</code></td><td>Workflow / resumed session / background session</td><td>Turn a request into a task with stop conditions</td></tr>
+    <tr><td>Reuse a repeated process</td><td><code>/skills</code>, <code>$skill-name</code></td><td><code>/skills</code>, <code>/skill-name</code>, <code>.claude/skills</code></td><td>Package prompt patterns into reusable workflows</td></tr>
+    <tr><td>Investigate several directions</td><td>Explicitly ask to spawn subagents; inspect with <code>/agent</code></td><td>Subagents, forks, <code>claude agents</code>, <code>/batch</code></td><td>Keep side investigations out of the main context</td></tr>
+    <tr><td>Restrict dangerous actions</td><td><code>/permissions</code>, sandbox, rules, hooks</td><td>Permission mode, allowed/disallowed tools, hooks</td><td>Safety should not depend on model self-restraint</td></tr>
+    <tr><td>Connect external tools</td><td><code>/mcp</code>, apps, plugins</td><td><code>claude mcp</code>, plugins, connectors</td><td>Give the agent live tools and data</td></tr>
+    <tr><td>Verify real behavior</td><td>Tests, <code>/diff</code>, <code>/review</code></td><td><code>/run</code>, <code>/verify</code>, <code>/code-review</code></td><td>Turn “looks right” into evidence</td></tr>
+  </table>
+
+  <h4>Skills and subagents: when to use them</h4>
+  <p><strong>Skills</strong> are reusable workflows. Use them when your team repeats the same sequence: release prep, code review, dependency upgrade, docs sync, security checklist, or API migration. Keep each skill focused and explicit about when it should or should not trigger.</p>
+  <p><strong>Subagents</strong> are isolated workers. Use them when an investigation can be parallelized or would otherwise pollute the main context: one worker checks frontend behavior, another reads API code, another inspects tests, another reviews security. Do not use subagents for simple one-off questions; they cost extra tokens and latency.</p>
+
+  <h3 id="team-agent-workflow">7. How a team can use AI agents from requirements to release</h3>
+  <p>The single-developer workflow is only the beginning. In a real team, the question is: how do agents fit into requirements, design, task breakdown, implementation, review, QA, release, monitoring, and retrospectives? The answer is not “let AI build the project”. It is: make every step have a clear input, output, validation gate, and owner.</p>
+  <p><strong>Core principle:</strong> agents can accelerate exploration, drafting, coding, testing, summarizing, and repeated work. The team still owns goals, boundaries, acceptance criteria, release decisions, and accountability.</p>
+  <table>
+    <tr><th>Phase</th><th>Human input</th><th>Agent work</th><th>Auditable artifact</th><th>Gate</th></tr>
+    <tr><td>Requirements</td><td>Problem, users, priority</td><td>Clarify scope, non-goals, acceptance criteria</td><td>Issue / PRD</td><td>PM confirms what is in/out</td></tr>
+    <tr><td>Design</td><td>Architecture boundaries</td><td>Read code, compare options, list risks</td><td>Design note / ADR</td><td>Tech lead approves plan</td></tr>
+    <tr><td>Task split</td><td>Release constraints</td><td>Break into small PRs</td><td>Implementation plan</td><td>Each PR has a clear done condition</td></tr>
+    <tr><td>Development</td><td>Small target</td><td>Write tests, make minimal diff, run checks</td><td>Diff + test output</td><td>Relevant checks pass</td></tr>
+    <tr><td>Review</td><td>PR ready for review</td><td>Summarize diff, identify correctness/security/test gaps</td><td>PR comments</td><td>Human reviewer approves</td></tr>
+    <tr><td>QA / Release</td><td>Release owner decision</td><td>Prepare release notes, rollback plan, monitoring checklist</td><td>Release checklist</td><td>CI and release gates pass</td></tr>
+    <tr><td>Retrospective</td><td>Known failures and learnings</td><td>Update rules, skills, hooks, templates</td><td>Repo guidance / skill update</td><td>Next run avoids the same mistake</td></tr>
+  </table>
+
+  <h4>Concrete example: from “settings save is broken” to release</h4>
+  <p>Assume a SaaS settings page has a bug: the user enables “email alerts”, clicks Save, sees a “Saved” toast, but after refresh the switch is off again. The team wants a safe fix in the next patch release.</p>
+  <table>
+    <tr><th>Step</th><th>Prompt / action</th><th>Expected artifact</th></tr>
+    <tr><td>1. Turn bug report into issue</td><td>Ask the agent to write repro steps, expected vs actual behavior, acceptance criteria, non-goals, and open questions. Tell it not to edit code.</td><td>GitHub issue with clear acceptance criteria</td></tr>
+    <tr><td>2. Read-only investigation</td><td>Ask the agent to inspect the settings page, API handler, persistence layer, and tests. Require a file list and likely root causes.</td><td>Investigation note with call chain and hypotheses</td></tr>
+    <tr><td>3. Technical plan</td><td>Ask for the smallest fix that does not change the API shape, plus a regression test plan.</td><td>Approved implementation plan</td></tr>
+    <tr><td>4. Implementation</td><td>Ask it to add a failing regression test first, then make the minimal code change and run relevant tests.</td><td>Small diff + test output</td></tr>
+    <tr><td>5. PR review</td><td>Ask a separate agent/subagent to review only correctness, security, missing tests, and complexity.</td><td>Focused high-confidence findings</td></tr>
+    <tr><td>6. Release prep</td><td>Ask for release note, rollback steps, and monitoring signals. Do not allow it to invent tests that were not run.</td><td>Release checklist</td></tr>
+    <tr><td>7. Retrospective</td><td>Update project rules or a review skill so “saved toast but not persisted” bugs get checked earlier.</td><td>Updated <code>AGENTS.md</code>, <code>CLAUDE.md</code>, checklist, or skill</td></tr>
+  </table>
+
+<pre><code># Example prompt: read-only investigation
+Do not modify files yet.
+Investigate why enabling "email alerts" shows a Saved toast but resets after refresh.
+
+Return:
+1. Relevant files and request flow
+2. Where frontend state, API request, and persistence happen
+3. 2-3 likely root causes
+4. The regression test to write first
+5. A minimal fix plan that does not change the API shape</code></pre>
+
+<pre><code># Example prompt: implementation slice
+Follow the approved plan.
+1. Add a regression test that reproduces the bug.
+2. Make the minimal code change.
+3. Run the smallest relevant test suite.
+4. If tests fail, explain the failure before editing again.
+5. Finish with diff summary, commands run, and results.</code></pre>
+
+  <p>This example is deliberately small. Small tasks are where teams learn the right operating model: agent output must become issues, plans, diffs, tests, PR comments, release notes, and updated rules — not just chat history.</p>
+
+  <h3>8. How to Compare Modern Coding Agents</h3>
   <p>Coding-agent tools change quickly: GitHub stars, leaderboards, licenses, and model support all move over time. Rather than freezing a ranking into this book, use a stable comparison framework. When evaluating tools such as Claude Code, Codex CLI, Gemini CLI, OpenCode, Cursor, Windsurf, or Continue.dev, focus on these dimensions.</p>
 
   <h4>Key Dimensions</h4>
@@ -2899,6 +3035,20 @@ Test results, search results, file line numbers, command output, etc.</code></pr
 <!-- ===== UTILS ===== -->
 <section id="utils">
   <h2>Tools &amp; Configuration</h2>
+
+  <h3>Minimum AI-agent setup for a team repository</h3>
+  <p>If a team wants to use Codex, Claude Code, or another coding agent in daily development, it should not rely on everyone writing ad-hoc prompts. Put the working boundaries into the repository so every agent session sees consistent rules and can verify results with real commands.</p>
+  <table>
+    <tr><th>File / mechanism</th><th>What to put there</th><th>Why it matters</th></tr>
+    <tr><td><code>AGENTS.md</code></td><td>Repository layout, coding rules, test commands, pre-merge checks, files not to touch</td><td>Codex-style agents automatically get the team's conventions</td></tr>
+    <tr><td><code>CLAUDE.md</code></td><td>Project notes, common commands, context hints, Claude Code workflow conventions</td><td>Reduces repeated explanation in every session</td></tr>
+    <tr><td><code>.github/pull_request_template.md</code></td><td>Change summary, verification, risk, screenshots/logs, rollback</td><td>Prevents agent-created PRs from lacking evidence</td></tr>
+    <tr><td><code>docs/adr/</code></td><td>Important architecture decisions, alternatives, tradeoffs</td><td>Future agents do not re-litigate settled design decisions</td></tr>
+    <tr><td><code>scripts/</code></td><td>One-command test, format, build, and docs checks</td><td>Agents are better at running stable scripts than guessing team commands</td></tr>
+    <tr><td>CI workflow</td><td>Tests, lint, typecheck, build, docs checks</td><td>Turns “looks right” into machine-verifiable evidence</td></tr>
+    <tr><td>Skills / commands</td><td>Repeated review, release, migration, or docs-sync workflows</td><td>Turns team experience into reusable assets</td></tr>
+    <tr><td>Hooks / permissions</td><td>Dangerous-command blocking, sensitive-file checks, stop-time validation</td><td>Safety boundaries should not rely on model self-restraint</td></tr>
+  </table>
 
   <h3>CfgNode: Configuration System</h3>
   <p>Both GPT and Trainer use a <code>CfgNode</code> configuration system (similar to YACS or fvcore). It allows nested configs and easy parameter access.</p>
