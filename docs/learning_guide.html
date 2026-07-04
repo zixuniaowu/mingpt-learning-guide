@@ -79,12 +79,15 @@
       </p>
     </div>
     <div class="run-actions">
-      <a class="run-button primary" href="../learning_guide.ipynb">打开 Notebook</a>
+      <a class="run-button primary" href="../learning_guide.ipynb">打开 Notebook 文件</a>
+      <a class="run-button" href="http://localhost:8888/lab/tree/learning_guide.ipynb" target="_blank" rel="noopener">在 JupyterLab 打开</a>
       <a class="run-button" href="#labs">跳到动手实验</a>
     </div>
     <pre class="run-command"><code>pip install -e .
-jupyter lab learning_guide.ipynb</code></pre>
+python -m jupyterlab learning_guide.ipynb</code></pre>
     <p class="run-note">
+      “打开 Notebook 文件”会打开 <code>.ipynb</code> 本身；如果系统把它关联到记事本或浏览器源码视图，它不会变成可执行环境。
+      要真正运行，请先执行上面的 <code>python -m jupyterlab learning_guide.ipynb</code>，再点“在 JupyterLab 打开”。
       普通 HTML 不能原生执行 <code>.ipynb</code>：notebook 需要 Python kernel、依赖环境和文件系统权限。
       可以把 notebook 的代码单元嵌入 HTML 展示，但真正运行仍应交给 Jupyter、VS Code Notebook、JupyterLite/Pyodide 或后端执行服务。
       本页的代码块可一键复制到 notebook 里运行。

@@ -78,12 +78,15 @@
       </p>
     </div>
     <div class="run-actions">
-      <a class="run-button primary" href="../learning_guide.ipynb">Open Notebook</a>
+      <a class="run-button primary" href="../learning_guide.ipynb">Open Notebook File</a>
+      <a class="run-button" href="http://localhost:8888/lab/tree/learning_guide.ipynb" target="_blank" rel="noopener">Open in JupyterLab</a>
       <a class="run-button" href="#labs">Jump to Labs</a>
     </div>
     <pre class="run-command"><code>pip install -e .
-jupyter lab learning_guide.ipynb</code></pre>
+python -m jupyterlab learning_guide.ipynb</code></pre>
     <p class="run-note">
+      “Open Notebook File” opens the <code>.ipynb</code> file itself. If your OS associates it with Notepad or a raw browser view, it will not become an executable notebook.
+      To actually run cells, start Jupyter first with <code>python -m jupyterlab learning_guide.ipynb</code>, then click “Open in JupyterLab”.
       Plain HTML cannot execute <code>.ipynb</code> files by itself: notebooks need a Python kernel, dependencies, and filesystem access.
       You can embed notebook code cells in HTML for display, but real execution should happen in Jupyter, VS Code Notebook, JupyterLite/Pyodide, or a backend execution service.
       Code blocks on this page can be copied into the notebook with one click.
