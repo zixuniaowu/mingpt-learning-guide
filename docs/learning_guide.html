@@ -1682,8 +1682,15 @@ self.register_buffer("bias", torch.tril(torch.ones(block_size, block_size))
   </ul>
 
   <h3>交互式注意力小工具</h3>
-  <p>下面的交互式工具让你逐步查看 4 个 token 的注意力过程。点击"Next Step"逐步推演，或用滑块调整某个 token 的查询向量，观察注意力分布如何变化。</p>
-  <div id="attn-toy" class="toy-container"><div class="attn-grid"><div class="attn-step"><div class="step-label">Step 0: Input tokens</div><div class="token-row"><span class="token t0">I</span><span class="token t1">like</span><span class="token t2">cats</span><span class="token t3">&lt;pad&gt;</span></div></div><div class="attn-step"><div class="step-label">Step 1: QKV projection</div><div class="qkv-vis"><div class="qkv-row"><span class="qkv-label">Q</span><div class="qkv-bar" style="width:40%"></div></div><div class="qkv-row"><span class="qkv-label">K</span><div class="qkv-bar" style="width:55%"></div></div><div class="qkv-row"><span class="qkv-label">V</span><div class="qkv-bar" style="width:35%"></div></div></div></div><div class="attn-step"><div class="step-label">Step 2: Attention scores (Q·K)</div><div class="score-matrix"><div class="score-row"><span class="token-ref">I</span><span class="score s0">0.7</span><span class="score s1">0.2</span><span class="score s2">-0.1</span><span class="score s3">0.0</span></div><div class="score-row"><span class="token-ref">like</span><span class="score s0">0.3</span><span class="score s1">1.2</span><span class="score s2">0.5</span><span class="score s3">0.0</span></div><div class="score-row"><span class="token-ref">cats</span><span class="score s0">-0.2</span><span class="score s1">0.4</span><span class="score s2">0.9</span><span class="score s3">0.0</span></div><div class="score-row"><span class="token-ref">&lt;pad&gt;</span><span class="score s0">0.0</span><span class="score s1">0.0</span><span class="score s2">0.0</span><span class="score s3">0.0</span></div></div></div></div></div>
+  <p>下面的交互式工具用一个 4-token 的小序列<strong>真实计算</strong>注意力：Q@K^T → 因果掩码 → Softmax → 加权 V。点"下一步"逐步推演；Q/K/V 矩阵里的数字都可以直接改，改完每一步立刻重算，试试让 "cats" 更多地关注 "love"。</p>
+  <div id="attn-toy" class="toy-container">
+    <div class="toy-matrix" style="min-height:110px"></div>
+    <div class="toy-controls">
+      <button id="attn-step">下一步</button>
+      <button id="attn-reset">重置</button>
+    </div>
+    <div class="toy-log" style="font-size:0.8rem;color:#9aa3b8;margin-top:4px"></div>
+  </div>
 </section><!-- ===== BLOCK ===== -->
 <section id="block">
   <h3>7. Transformer Block 详解</h3>

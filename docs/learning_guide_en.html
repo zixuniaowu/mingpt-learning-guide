@@ -156,7 +156,143 @@ pip install transformers  # needed for loading pretrained GPT-2 weights</code></
 
 
 
-<!-- ===== GENERATION ===== -->
+<!-- ===== GLOSSARY ===== -->
+<section id="glossary">
+  <div class="chapter-header">
+    <h2>Glossary: Translating the Jargon into Plain Language</h2>
+    <div class="subtitle">When you hit an unfamiliar term while reading, look it up here first. Don't memorize definitions — first grasp what the term does in the pipeline.</div>
+  </div>
+
+  <div class="callout important" style="margin:1rem 0;">
+    <strong>How to read a term</strong><br>
+    For every term, ask three questions: What does it take as input? What does it output? Which step of the "predict the next token" pipeline is it responsible for?<br>
+    If you can answer those three, the English name stops being scary.
+  </div>
+
+  <p><strong>Figure: almost every term hangs on the same main line</strong></p>
+  <p>GPT is not a pile of isolated concepts. The line below strings most terms together: text becomes tokens, tokens flow through the Transformer, out come logits, softmax turns them into probabilities. During training, loss and gradients update parameters; during generation, tokens are appended one at a time, each sampled by probability.</p>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 760 300" role="img" aria-label="Where common GPT terms sit in the text-to-training-and-generation pipeline">
+      <defs>
+        <marker id="glossary_arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#64748b"/>
+        </marker>
+        <linearGradient id="glossary_bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#f8fafc"/>
+          <stop offset="100%" stop-color="#eef2ff"/>
+        </linearGradient>
+      </defs>
+
+      <rect x="0" y="0" width="760" height="300" rx="12" fill="url(#glossary_bg)" stroke="#cbd5e1"/>
+      <text x="32" y="34" fill="#0f172a" font-size="16" font-weight="700">One main line explains most of the vocabulary</text>
+
+      <rect x="38" y="78" width="112" height="54" rx="9" fill="#eff6ff" stroke="#93c5fd"/>
+      <text x="94" y="100" text-anchor="middle" fill="#1d4ed8" font-weight="700">Text</text>
+      <text x="94" y="119" text-anchor="middle" fill="#1e3a8a" font-size="11">"I like cats"</text>
+
+      <line x1="150" y1="105" x2="184" y2="105" stroke="#64748b" stroke-width="2" marker-end="url(#glossary_arrow)"/>
+      <rect x="186" y="78" width="112" height="54" rx="9" fill="#f5f3ff" stroke="#c4b5fd"/>
+      <text x="242" y="100" text-anchor="middle" fill="#6d28d9" font-weight="700">Token</text>
+      <text x="242" y="119" text-anchor="middle" fill="#5b21b6" font-size="11">integer ID sequence</text>
+
+      <line x1="298" y1="105" x2="332" y2="105" stroke="#64748b" stroke-width="2" marker-end="url(#glossary_arrow)"/>
+      <rect x="334" y="78" width="112" height="54" rx="9" fill="#ecfdf5" stroke="#86efac"/>
+      <text x="390" y="100" text-anchor="middle" fill="#166534" font-weight="700">Embedding</text>
+      <text x="390" y="119" text-anchor="middle" fill="#14532d" font-size="11">integers → vectors</text>
+
+      <line x1="446" y1="105" x2="480" y2="105" stroke="#64748b" stroke-width="2" marker-end="url(#glossary_arrow)"/>
+      <rect x="482" y="78" width="112" height="54" rx="9" fill="#fff7ed" stroke="#fdba74"/>
+      <text x="538" y="100" text-anchor="middle" fill="#9a3412" font-weight="700">Transformer</text>
+      <text x="538" y="119" text-anchor="middle" fill="#7c2d12" font-size="11">attention + MLP</text>
+
+      <line x1="594" y1="105" x2="628" y2="105" stroke="#64748b" stroke-width="2" marker-end="url(#glossary_arrow)"/>
+      <rect x="630" y="78" width="92" height="54" rx="9" fill="#fef2f2" stroke="#fca5a5"/>
+      <text x="676" y="100" text-anchor="middle" fill="#991b1b" font-weight="700">Logits</text>
+      <text x="676" y="119" text-anchor="middle" fill="#7f1d1d" font-size="11">vocab scores</text>
+
+      <line x1="676" y1="132" x2="676" y2="174" stroke="#64748b" stroke-width="2" marker-end="url(#glossary_arrow)"/>
+      <rect x="608" y="176" width="136" height="58" rx="9" fill="#fffbeb" stroke="#facc15"/>
+      <text x="676" y="199" text-anchor="middle" fill="#854d0e" font-weight="700">Softmax</text>
+      <text x="676" y="218" text-anchor="middle" fill="#713f12" font-size="11">scores → probability</text>
+
+      <path d="M608 205 C500 260, 282 260, 170 205" fill="none" stroke="#ef4444" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#glossary_arrow)"/>
+      <rect x="40" y="176" width="220" height="58" rx="9" fill="#fee2e2" stroke="#f87171"/>
+      <text x="150" y="199" text-anchor="middle" fill="#991b1b" font-weight="700">Training: Loss → Gradient → Optimizer</text>
+      <text x="150" y="218" text-anchor="middle" fill="#7f1d1d" font-size="11">measure the error, then adjust parameters</text>
+
+      <rect x="300" y="176" width="220" height="58" rx="9" fill="#dcfce7" stroke="#22c55e"/>
+      <text x="410" y="199" text-anchor="middle" fill="#166534" font-weight="700">Generation: Sample → Append → Repeat</text>
+      <text x="410" y="218" text-anchor="middle" fill="#14532d" font-size="11">pick a token, append it, continue</text>
+
+      <text x="380" y="276" text-anchor="middle" fill="#475569">While reading, ask: which box of this pipeline does the term live in? Is it changing representations, scoring, computing loss, or steering generation?</text>
+    </svg>
+  </div>
+
+  <h3>Basic data terms</h3>
+  <table>
+    <tr><th>Term</th><th>Plain-language explanation</th><th>How it's used in this book</th></tr>
+    <tr><td>token</td><td>The smallest unit of text the model actually processes — a character, a word, a space plus a word, or a subword chunk.</td><td>Every input and output is ultimately a token sequence.</td></tr>
+    <tr><td>token ID</td><td>The integer number assigned to each token. The model never sees raw text, only these integers.</td><td>Lists like <code>[40, 588, 11875]</code>.</td></tr>
+    <tr><td>vocabulary / vocab</td><td>The full list of tokens. GPT-2's vocab has about 50,257 tokens.</td><td>The last dimension of the output logits is vocab_size.</td></tr>
+    <tr><td>tokenization</td><td>The process of splitting text into token IDs.</td><td>The BPE chapter is all about it.</td></tr>
+    <tr><td>embedding</td><td>A lookup table that turns each token ID into a vector so the model can do matrix math.</td><td><code>wte</code> is the token embedding, <code>wpe</code> the position embedding.</td></tr>
+    <tr><td>context window</td><td>The maximum number of tokens the model can see at once.</td><td>History beyond the window must be truncated, summarized, or retrieved.</td></tr>
+    <tr><td>block_size</td><td>minGPT's name for the maximum sequence length.</td><td>Training and generation must both respect it.</td></tr>
+  </table>
+
+  <h3>Model output and training terms</h3>
+  <table>
+    <tr><th>Term</th><th>Plain-language explanation</th><th>How it's used in this book</th></tr>
+    <tr><td>logits</td><td>The model's raw, unnormalized score for every candidate token — not yet probabilities.</td><td>The <code>(B, T, vocab_size)</code> output.</td></tr>
+    <tr><td>softmax</td><td>Turns a pile of scores into probabilities that sum to 1.</td><td>Used once inside attention, and again when sampling during generation.</td></tr>
+    <tr><td>loss</td><td>A number scoring how wrong the model was this step; lower is better.</td><td>Training is the act of pushing loss down.</td></tr>
+    <tr><td>cross entropy</td><td>The standard classification loss: the lower the probability on the correct answer, the bigger the penalty.</td><td>minGPT uses it to train next-token prediction.</td></tr>
+    <tr><td>gradient</td><td>Tells every parameter which direction to change so that loss goes down.</td><td>Computed by <code>loss.backward()</code>.</td></tr>
+    <tr><td>backpropagation</td><td>The automatic differentiation process that traces loss back to each parameter's responsibility.</td><td>The core step of the training loop.</td></tr>
+    <tr><td>optimizer</td><td>The tool that actually modifies parameters based on gradients.</td><td>minGPT defaults to AdamW.</td></tr>
+    <tr><td>learning rate</td><td>How big a step to take each time parameters are updated.</td><td>Too big explodes, too small crawls.</td></tr>
+    <tr><td>weight decay</td><td>A regularizer that keeps certain weights from growing too large.</td><td>minGPT applies it only to linear-layer weights.</td></tr>
+    <tr><td>ignore_index / mask</td><td>Makes certain positions not participate in the loss; their gradient is exactly 0.</td><td>Used by adder and chat training to "train only the answer part".</td></tr>
+  </table>
+
+  <h3>Transformer structure terms</h3>
+  <table>
+    <tr><th>Term</th><th>Plain-language explanation</th><th>How it's used in this book</th></tr>
+    <tr><td>attention</td><td>Lets every position decide which earlier positions it should draw information from.</td><td>GPT's core information-mixing mechanism.</td></tr>
+    <tr><td>Q / K / V</td><td>Q is "what am I looking for", K is "what label do I offer", V is "the information actually handed over".</td><td>The three vector groups of self-attention.</td></tr>
+    <tr><td>causal mask</td><td>Forbids the current position from seeing future tokens.</td><td>Guarantees GPT generates left to right.</td></tr>
+    <tr><td>multi-head attention</td><td>Splits attention into several small specialists, each watching different relations.</td><td>Controlled by <code>n_head</code>.</td></tr>
+    <tr><td>residual connection</td><td>Adds the original input back to the output, preventing information and gradient loss.</td><td><code>x = x + sublayer(...)</code>.</td></tr>
+    <tr><td>LayerNorm</td><td>Keeps each token's vector values in a stable range.</td><td>minGPT uses Pre-LN.</td></tr>
+    <tr><td>MLP / FFN</td><td>A small per-position network that does not communicate across positions.</td><td>Usually expands to 4× the dimension, then compresses back.</td></tr>
+    <tr><td>activation</td><td>Adds nonlinearity; without it, stacked linear layers collapse into one linear transform.</td><td>GPT-2/minGPT use GELU.</td></tr>
+    <tr><td>LM head</td><td>Projects hidden vectors into vocab-sized logits.</td><td>The final step: scoring every candidate token.</td></tr>
+  </table>
+
+  <h3>Generation, fine-tuning, and agent terms</h3>
+  <table>
+    <tr><th>Term</th><th>Plain-language explanation</th><th>How it's used in this book</th></tr>
+    <tr><td>autoregressive</td><td>Generate one token at a time, append it to the context, and continue.</td><td>How GPT produces long answers.</td></tr>
+    <tr><td>temperature</td><td>Controls how sharp the generation distribution is. Low = conservative, high = random.</td><td>Applied to the logits.</td></tr>
+    <tr><td>top-k sampling</td><td>Only choose among the k highest-probability tokens.</td><td>Keeps generation from wandering off.</td></tr>
+    <tr><td>KV cache</td><td>During generation, caches past tokens' Keys/Values so history isn't recomputed every step.</td><td>Common in production inference; the teaching version of minGPT skips it.</td></tr>
+    <tr><td>pretraining</td><td>Learning general language patterns from massive text.</td><td>The base-model stage.</td></tr>
+    <tr><td>fine-tuning</td><td>Continuing training on task-specific data so outputs fit the task's style or format.</td><td>Chapter 15.</td></tr>
+    <tr><td>LoRA</td><td>Freeze the big model, train only small low-rank side matrices.</td><td>A memory-efficient fine-tuning method.</td></tr>
+    <tr><td>rank</td><td>The width of LoRA's bottleneck; decides capacity and cost.</td><td>Bigger r learns more but costs more.</td></tr>
+    <tr><td>RAG</td><td>Retrieve evidence from external documents first, then put it in context for the model to answer from.</td><td>Good for fresh knowledge and company-doc Q&amp;A.</td></tr>
+    <tr><td>prompt</td><td>The task input given to the model this turn.</td><td>User questions, instructions, and examples can all be part of a prompt.</td></tr>
+    <tr><td>system prompt</td><td>Highest-priority rules defining the model's identity, boundaries, and behavior.</td><td>The agent chapters distinguish it from context.</td></tr>
+    <tr><td>context engineering</td><td>Deciding which materials the model should see this turn.</td><td>Organizing rules, memory, files, and tool outputs.</td></tr>
+    <tr><td>loop engineering</td><td>Designing how an agent repeatedly observes, acts, verifies, and stops.</td><td>The outer mechanism that lets coding agents keep working.</td></tr>
+    <tr><td>tool call</td><td>A special action the model emits that an external system executes.</td><td>Reading files, running tests, searching, editing code, and so on.</td></tr>
+  </table>
+
+  <div class="note">
+    <strong>Tip:</strong> On a first read, don't try to memorize every term. After finishing each chapter, come back and scan the matching table, filling in "what this word does in the pipeline".
+  </div>
+</section>
+
 
 
 <!-- ===== PREFACE ===== -->
@@ -1354,7 +1490,7 @@ y = att @ v</code></pre>
   </div>
 
   <h3>Interactive Attention Toy</h3>
-  <p>Below is an interactive tool using a 4-token sequence. It shows the real numerical values at each step: "Q@K^T → causal mask → Softmax → weighted V". Click the button to step through.</p>
+  <p>Below is an interactive tool that <strong>actually computes</strong> attention on a 4-token sequence: "Q@K^T → causal mask → Softmax → weighted V". Click the button to step through. Every number in the Q/K/V matrices is editable — change one and every step recomputes instantly. Try making "cats" attend more to "love".</p>
   <div id="attn-toy" class="toy-container">
     <div class="toy-matrix" style="min-height:110px"></div>
     <div class="toy-controls">

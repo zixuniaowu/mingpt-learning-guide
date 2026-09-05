@@ -490,91 +490,172 @@ function initGDCanvas() {
 // Ensure it runs
 document.addEventListener('DOMContentLoaded', initGDCanvas);
 
-/* ==================== Interactive Attention Toy (Causal) ==================== */
+/* ==================== Interactive Attention Toy (REAL computation, editable Q/K/V) ====================
+   Every matrix shown is actually computed from the editable Q/K/V inputs below.
+   Nothing is hard-coded: change any number and every later step recomputes instantly. */
 function initAttentionToy() {
   const root = document.getElementById('attn-toy');
-  if (!root) return;
+  if (!root || root.dataset.toyReady === '1') return;
 
-  const tokens = ['A', 'B', 'C', 'D']; // toy sequence of length 4
-  let step = 0;
-  const logEl = root.querySelector('.toy-log');
   const matrixEl = root.querySelector('.toy-matrix');
+  const logEl = root.querySelector('.toy-log');
+  const stepBtn = root.querySelector('#attn-step');
+  const resetBtn = root.querySelector('#attn-reset');
+  if (!matrixEl || !logEl || !stepBtn || !resetBtn) return;
+  root.dataset.toyReady = '1';
 
-  function renderMatrix(mat, label) {
-    let html = `<div style="color:#9aa3b8;font-size:0.75rem;margin:4px 0;">${label}</div>`;
-    html += '<table style="border-collapse:collapse;font-size:0.78rem;">';
-    mat.forEach(row => {
-      html += '<tr>';
-      row.forEach(v => {
-        const bg = v === '-inf' ? '#3a2a1f' : (v > 0.3 ? '#14352a' : '#1a2332');
-        const col = v === '-inf' ? '#fb923c' : '#e8eaf0';
-        html += `<td style="padding:3px 7px;border:1px solid #2e3345;background:${bg};color:${col};text-align:center;min-width:32px;">${v}</td>`;
-      });
+  const lang = (document.documentElement.getAttribute('lang') || 'zh').slice(0, 2).toLowerCase();
+  const zh = {
+    stepBtn: '下一步', resetBtn: '重置',
+    ready: '就绪：序列 = [I, love, cats, !]  |  每个位置只能看到自己及左侧。Q/K/V 全部可以改数值，改完每一步都会实时重算。',
+    s1: '步骤 1/6：输入。每个位置一个 3 维向量。Q/K/V 都是可编辑的 —— 改任何一个数字，后面所有步骤立刻重算。',
+    s2: '步骤 2/6：打分 S = Q·Kᵀ。S[i][j] 是“位置 i 想找的信息”和“位置 j 提供的标签”的点积，越大越相关。',
+    s3: '步骤 3/6：因果掩码。右上角（未来位置）全部设为 -∞ —— 这就是“不能偷看未来”。',
+    s4: '步骤 4/6：Softmax。每一行独立归一化成注意力权重，行和 = 1；-∞ 位置的权重精确等于 0。',
+    s5: '步骤 5/6：加权求和。输出[i] = Σ 权重[i][j] × V[j]，每个位置的新表示是“允许看到的位置的 V”按权重混合的结果。',
+    s6: '✓ 完成！动手试试：把 Q 或 K 里的某个数字改大，再翻回第 2 步看分数和权重如何变化。真实模型中：多头并行 + 缩放 1/√d_k + 残差连接与 LayerNorm。',
+    tblQ: 'Q（每个位置想找什么）', tblK: 'K（每个位置提供的标签）', tblV: 'V（每个位置真正携带的信息）',
+    recap: '✓ 自注意力完成！接下来这个输出还会经过残差连接 + LayerNorm + MLP。'
+  };
+  const en = {
+    stepBtn: 'Next Step', resetBtn: 'Reset',
+    ready: 'Ready: sequence = [I, love, cats, !]  |  each position sees only itself and the left. Edit any Q/K/V number — every step recomputes live.',
+    s1: 'Step 1/6: Inputs. One 3-dim vector per position. Q/K/V are editable — change any number and every later step recomputes instantly.',
+    s2: 'Step 2/6: Scores S = Q·Kᵀ. S[i][j] = dot product between what position i looks for and the label position j offers. Higher = more relevant.',
+    s3: 'Step 3/6: Causal mask. Future positions (upper right) become -∞ — this is “no peeking at the future”.',
+    s4: 'Step 4/6: Softmax. Each row is normalized into attention weights that sum to 1; -∞ entries get exactly 0.',
+    s5: 'Step 5/6: Weighted sum. output[i] = Σ weight[i][j] × V[j] — each new representation mixes the V vectors of allowed positions.',
+    s6: '✓ Done! Try making one Q or K entry bigger, then step back to step 2 and watch scores/weights shift. Real model: multi-head + 1/√d_k scaling + residuals and LayerNorm.',
+    tblQ: 'Q (what each position looks for)', tblK: 'K (label each position offers)', tblV: 'V (information each position carries)',
+    recap: '✓ Attention done! This output then goes through residual + LayerNorm + MLP.'
+  };
+  const ja = {
+    stepBtn: '次へ', resetBtn: 'リセット',
+    ready: '準備完了：系列 = [I, love, cats, !]  |  各位置は自分と左側だけを見られます。Q/K/V の数値は編集でき、変更すると即座に再計算されます。',
+    s1: 'ステップ 1/6：入力。各位置に 3 次元ベクトル。Q/K/V は編集可能 — 数値を変えると以降のステップはすべて再計算されます。',
+    s2: 'ステップ 2/6：スコア S = Q·Kᵀ。S[i][j] は「位置 i が探したい情報」と「位置 j のラベル」の内積。大きいほど関連が強い。',
+    s3: 'ステップ 3/6：因果マスク。未来の位置（右上）をすべて -∞ に — 「未来を覗き見しない」ためです。',
+    s4: 'ステップ 4/6：Softmax。行ごとに正規化して注意重みにし、行和 = 1。-∞ の位置は正確に 0 になります。',
+    s5: 'ステップ 5/6：重み付き和。出力[i] = Σ 重み[i][j] × V[j]。新しい表現は「見てよい位置の V」を重みで混ぜたものです。',
+    s6: '✓ 完了！Q か K の数値を大きくしてみて、ステップ 2 でスコアと重みがどう変わるか観察しましょう。実際のモデル：マルチヘッド + 1/√d_k スケーリング + 残差と LayerNorm。',
+    tblQ: 'Q（各位置が探したいもの）', tblK: 'K（各位置のラベル）', tblV: 'V（各位置が運ぶ情報）',
+    recap: '✓ 注意計算完了！この出力はさらに残差 + LayerNorm + MLP へ進みます。'
+  };
+  const t = { zh, en, ja }[lang] || zh;
+
+  const tokens = ['I', 'love', 'cats', '!'];
+  const DIMS = ['d0', 'd1', 'd2'];
+  const MAX_STEP = 6;
+
+  const defQ = () => [[1, 0, 0], [0, 1, 0], [1, 1, 0], [0, 0, 1]];
+  const defK = () => [[1, 0, 0], [0, 1, 0], [1, 1, 0], [0, 0, 1]];
+  const defV = () => [[1, 0, 0], [0, 1, 0], [0, 0, 1], [0.5, 0.5, 0]];
+  let Q = defQ(), K = defK(), V = defV();
+  let step = 0;
+  let focus = null; // remember which editable cell the user is typing in
+
+  const transpose = m => m[0].map((_, j) => m.map(row => row[j]));
+  const matmul = (a, b) => a.map(ra => b[0].map((_, j) => ra.reduce((s, v, k) => s + v * b[k][j], 0)));
+  const softmaxArr = arr => {
+    const finite = arr.filter(Number.isFinite);
+    const max = finite.length ? Math.max(...finite) : 0;
+    const exps = arr.map(v => (Number.isFinite(v) ? Math.exp(v - max) : 0));
+    const s = exps.reduce((x, y) => x + y, 0) || 1;
+    return exps.map(e => e / s);
+  };
+  const fmt = v => (v === -Infinity ? '-∞' : (+v).toFixed(2).replace(/\.?0+$/, ''));
+
+  function td(v) {
+    const inf = v === -Infinity;
+    const bg = inf ? '#3a2a1f' : (typeof v === 'number' && v > 0.3 ? '#14352a' : '#1a2332');
+    const col = inf ? '#fb923c' : '#e8eaf0';
+    return `<td style="padding:3px 7px;border:1px solid #2e3345;background:${bg};color:${col};text-align:center;min-width:34px;">${fmt(v)}</td>`;
+  }
+
+  function editableInput(store, i, j) {
+    const v = store[i][j];
+    return `<td style="padding:2px 4px;border:1px solid #2e3345;background:#141a28;text-align:center;">
+      <input type="number" step="0.1" value="${v}" data-key="${store === Q ? 'Q' : store === K ? 'K' : 'V'}" data-i="${i}" data-j="${j}"
+        style="width:52px;background:#0f1420;color:#bfdbfe;border:1px solid #334155;border-radius:3px;font-size:0.75rem;padding:1px 3px;">
+    </td>`;
+  }
+
+  function matTable(m, colLabels, editableStore) {
+    let html = '<table style="border-collapse:collapse;font-size:0.78rem;">';
+    html += '<tr><th></th>' + colLabels.map(c => `<th style="color:#9aa3b8;font-weight:normal;padding:2px 6px;">${c}</th>`).join('') + '</tr>';
+    m.forEach((row, i) => {
+      html += `<tr><th style="color:#9aa3b8;font-weight:normal;padding:2px 6px;text-align:right;">${tokens[i]}</th>`;
+      row.forEach((v, j) => { html += editableStore ? editableInput(editableStore, i, j) : td(v); });
       html += '</tr>';
     });
-    html += '</table>';
-    matrixEl.innerHTML = html;
+    return html + '</table>';
   }
 
-  function log(msg) {
-    logEl.textContent = msg;
+  function labeledTable(store, label) {
+    return `<div style="margin:4px 6px 4px 0;">
+      <div style="color:#6c9eff;font-size:0.72rem;margin-bottom:2px;">${label}</div>
+      ${matTable(store, DIMS, store)}
+    </div>`;
   }
 
-  // initial: show input tokens
-  function reset() {
-    step = 0;
-    matrixEl.innerHTML = `<div style="padding:8px;color:#9aa3b8;">点击“计算 Q/K/V” 开始逐步演示因果自注意力（T=4 玩具序列）</div>`;
-    logEl.textContent = '就绪：序列 = [' + tokens.join(', ') + ']  |  每个位置只能看到自己及左侧';
-  }
+  const tokensRow = () => `<div style="display:flex;gap:6px;margin:6px 0;flex-wrap:wrap;">` +
+    tokens.map((tk, i) => `<span style="padding:3px 10px;border-radius:12px;background:#1e3a5f;color:#bfdbfe;border:1px solid #6c9eff;font-size:0.78rem;">${i}: ${tk}</span>`).join('') + `</div>`;
 
-  root.querySelector('#attn-step').onclick = () => {
-    step = (step + 1) % 6;
-    if (step === 0) { reset(); return; }
+  const trio = () => `<div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;border-top:1px dashed #2e3345;padding-top:8px;">
+    ${labeledTable(Q, t.tblQ)}${labeledTable(K, t.tblK)}${labeledTable(V, t.tblV)}
+  </div>`;
 
-    if (step === 1) {
-      const qk = [
-        [1.0, 0.2, 0.1, 0.0],
-        [0.3, 1.1, 0.4, 0.2],
-        [0.2, 0.5, 0.9, 0.3],
-        [0.1, 0.3, 0.6, 1.2]
-      ];
-      renderMatrix(qk.map(r => r.map(x => x.toFixed(1))), '步骤1: 计算相关性分数 (Q 和 K 做点积)');
-      log('每个位置都算了自己和前面所有位置的“匹配分数”。分数越高越相关。');
+  const logs = { 0: t.ready, 1: t.s1, 2: t.s2, 3: t.s3, 4: t.s4, 5: t.s5, 6: t.s6 };
+
+  function render() {
+    const S = matmul(Q, transpose(K));
+    const M = S.map((row, i) => row.map((v, j) => (j > i ? -Infinity : v)));
+    const A = M.map(row => softmaxArr(row));
+    const O = matmul(A, V);
+
+    let html = tokensRow();
+    if (step === 0) {
+      html += `<div style="padding:8px 4px;color:#9aa3b8;">${t.ready}</div>`;
+    } else if (step === 1) {
+      html += trio();
     } else if (step === 2) {
-      const masked = [
-        ['1.0', '-inf', '-inf', '-inf'],
-        ['0.3', '1.1', '-inf', '-inf'],
-        ['0.2', '0.5', '0.9', '-inf'],
-        ['0.1', '0.3', '0.6', '1.2']
-      ];
-      renderMatrix(masked, '步骤2: 因果掩码（未来位置全部设为 -∞）');
-      log('这里最关键！位置 0 完全看不到 1、2、3；位置 1 看不到 2、3。这就是“不能偷看未来”。');
+      html += matTable(S, tokens) + trio();
     } else if (step === 3) {
-      const sm = [
-        [1.00, 0.00, 0.00, 0.00],
-        [0.31, 0.69, 0.00, 0.00],
-        [0.18, 0.24, 0.58, 0.00],
-        [0.12, 0.15, 0.20, 0.53]
-      ];
-      renderMatrix(sm.map(r => r.map(x => x.toFixed(2))), '步骤3: Softmax 变成注意力权重（每行加起来=1）');
-      log('现在分数变成了百分比。位置 0 100% 关注自己；位置 3 把注意力分配给了前面 4 个位置。');
+      html += matTable(M, tokens) + trio();
     } else if (step === 4) {
-      const out = [
-        [0.82, 0.11, -0.05],
-        [0.41, 0.67, 0.12],
-        [0.25, 0.39, 0.55],
-        [0.09, 0.28, 0.71]
-      ];
-      renderMatrix(out.map(r => r.map(x => x.toFixed(2))), '步骤4: 用权重加权 Value，得到这个位置的新表示');
-      log('每个位置现在都“汇总”了它被允许看到的所有信息。');
+      html += matTable(A, tokens) + trio();
     } else if (step === 5) {
-      matrixEl.innerHTML = `<div style="padding:8px 4px;color:#34d399;">✓ 自注意力完成！后面还会做残差连接 + LayerNorm + MLP（前馈网络）。</div>`;
-      log('演示完毕。真实模型里这 4 个位置会同时在多个头上并行计算。你可以重置再看一遍。');
+      html += matTable(O, DIMS) + trio();
+    } else {
+      html += `<div style="padding:8px 4px;color:#34d399;">${t.recap}</div>`;
     }
-  };
+    matrixEl.innerHTML = html;
+    logEl.textContent = logs[step];
 
-  root.querySelector('#attn-reset').onclick = reset;
-  reset();
+    if (focus) {
+      const el = matrixEl.querySelector(`input[data-key="${focus.key}"][data-i="${focus.i}"][data-j="${focus.j}"]`);
+      if (el) { el.focus(); const n = el.value.length; try { el.setSelectionRange(n, n); } catch (e) { /* not focusable */ } }
+      focus = null;
+    }
+  }
+
+  matrixEl.addEventListener('input', (e) => {
+    const inp = e.target.closest('input[data-key]');
+    if (!inp) return;
+    const v = parseFloat(inp.value);
+    if (!Number.isFinite(v)) return;
+    const store = { Q, K, V }[inp.dataset.key];
+    store[+inp.dataset.i][+inp.dataset.j] = v;
+    focus = { key: inp.dataset.key, i: +inp.dataset.i, j: +inp.dataset.j };
+    render();
+  });
+
+  stepBtn.onclick = () => { step = (step + 1) % (MAX_STEP + 1); render(); };
+  resetBtn.onclick = () => { step = 0; Q = defQ(); K = defK(); V = defV(); render(); };
+
+  stepBtn.textContent = t.stepBtn;
+  resetBtn.textContent = t.resetBtn;
+  render();
 }
 
 /* ==================== Sampler Playground (temperature + top-k) ==================== */
@@ -672,9 +753,9 @@ function initSamplerPlayground() {
   update();
 }
 
-/* Boot the new toys */
+/* Boot the toys — each init is isolated so one failure can never break the others */
 document.addEventListener('DOMContentLoaded', () => {
-  initCodeCopyButtons();
-  initAttentionToy();
-  initSamplerPlayground();
+  [initCodeCopyButtons, initAttentionToy, initSamplerPlayground].forEach((fn) => {
+    try { fn(); } catch (err) { console.error('[learning_guide] init failed:', fn.name, err); }
+  });
 });

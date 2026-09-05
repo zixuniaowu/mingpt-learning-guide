@@ -4,3 +4,12 @@ __pycache__/
 .env
 .pylintrc
 *.egg-info/
+
+# video build artifacts (slides/audio/segments; keep video/output/*.mp4)
+video/build/
+docs/_print/
+
+# publish binaries (regenerable via docs/make_pdf.py and video/tools/*)
+publish/*.pdf
+publish/*.mp4
+video/output/**/*.mp4

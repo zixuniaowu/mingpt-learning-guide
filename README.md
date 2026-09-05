@@ -182,9 +182,13 @@ HTML 里还有交互式注意力小工具，可以逐步看 `QK^T -> causal mask
 docs/
 ├── learning_guide.html       # 中文 HTML 学习书，主入口
 ├── learning_guide_en.html    # 英文版
+├── learning_guide_ja.html    # 日文版
 ├── learning_guide.css        # 样式
 ├── learning_guide.js         # 交互图与复制代码
 └── assets/                   # README 与文档图片
+
+video/
+└── scripts/en/               # 英文视频讲稿（每章一集，规划见 video/README.md）
 
 learning_guide.ipynb          # 配合 HTML 运行的练习 Notebook
 generate.ipynb                # 安全版 GPT-2 生成示例
@@ -207,6 +211,7 @@ projects/
 python -m json.tool learning_guide.ipynb
 python -m json.tool generate.ipynb
 node --check docs/learning_guide.js
+python docs/check_lang.py    # 三语章节结构一致性检查
 ```
 
 原始测试：

@@ -1,0 +1,192 @@
+/* ============================================================
+   print.css — light-theme, A4 print stylesheet for the
+   minGPT learning guide. Applied only in the PDF build
+   (docs/make_pdf.py). Not loaded by the interactive site.
+   ============================================================ */
+
+@page {
+  size: A4;
+  margin: 18mm 16mm 20mm 16mm;
+}
+
+/* keep colors/fills when printing */
+* {
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+/* ---------- light theme via the book's own variables ---------- */
+:root {
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface2: #f3f5f9;
+  --text: #16202f;
+  --muted: #5a6578;
+  --accent: #2563eb;
+  --accent2: #7c3aed;
+  --green: #059669;
+  --orange: #c2660a;
+  --code-bg: #f5f7fb;
+}
+
+html {
+  font-size: 14px;
+  background: #ffffff;
+}
+
+/* ---------- layout: single column, no sidebar ---------- */
+.layout {
+  display: block !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.sidebar {
+  display: none !important;
+}
+
+.main {
+  margin: 0 !important;
+  padding: 0 !important;
+  max-width: 100% !important;
+}
+
+/* ---------- interactivity is meaningless on paper ---------- */
+.toy-controls,
+.copy-code-button,
+.toy-log,
+#attn-toy,
+#sampler-toy {
+  display: none !important;
+}
+
+/* ---------- page breaks ---------- */
+section {
+  break-before: page;
+}
+section:first-of-type {
+  break-before: auto;
+}
+h2, h3 {
+  break-after: avoid;
+}
+/* keep figures and blocks intact */
+svg,
+.svg-wrap,
+.diagram,
+canvas,
+table,
+pre,
+.notebook-cell,
+.callout,
+.note,
+.warning,
+.formula {
+  break-inside: avoid;
+}
+
+/* ---------- typography & surfaces ---------- */
+body {
+  background: #ffffff !important;
+  color: var(--text) !important;
+  font-size: 10.5pt;
+  line-height: 1.75;
+}
+
+.diagram {
+  background: #ffffff !important;
+}
+
+pre, code {
+  background: var(--code-bg) !important;
+  color: var(--text) !important;
+}
+
+pre {
+  white-space: pre-wrap !important;   /* wrap long code lines instead of clipping */
+  word-break: break-word;
+  border: 1px solid #e3e8f0;
+  border-radius: 6px;
+  padding: 10px 14px;
+}
+
+code {
+  border: none;
+  padding: 0 2px;
+}
+
+table {
+  font-size: 9.5pt;
+  width: 100%;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.sidebar nav a { color: inherit; }
+
+canvas {
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+/* badges keep their chip look on paper */
+.badge-blue, .badge-purple, .badge-green {
+  border: 1px solid #d8dfec;
+}
+
+/* ---------- front matter (injected by make_pdf.py) ---------- */
+.front-cover {
+  text-align: center;
+  padding-top: 150px;
+}
+.front-cover .t {
+  font-size: 34pt;
+  font-weight: 700;
+  color: #16202f;
+  line-height: 1.4;
+  border: none;
+}
+.front-cover .s {
+  font-size: 16pt;
+  color: #2563eb;
+  margin-top: 26px;
+}
+.front-cover .based {
+  margin-top: 60px;
+  font-size: 11pt;
+  color: #5a6578;
+  line-height: 1.9;
+}
+.front-cover .meta {
+  margin-top: 130px;
+  font-size: 11pt;
+  color: #5a6578;
+  line-height: 2.0;
+}
+
+.front-toc {
+  break-before: page;
+}
+.front-toc ol {
+  list-style: none;
+  padding: 0;
+  columns: 2;
+  column-gap: 34px;
+  font-size: 10pt;
+}
+.front-toc li {
+  margin: 5px 0;
+  break-inside: avoid;
+}
+.front-toc .grp {
+  font-weight: 700;
+  color: #2563eb;
+  margin-top: 12px;
+}
+.front-toc a {
+  color: var(--text) !important;
+}

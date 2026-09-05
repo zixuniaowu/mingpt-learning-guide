@@ -1411,8 +1411,15 @@ self.register_buffer("bias", torch.tril(torch.ones(block_size, block_size))
 <li>注意ドロップアウトは、スコアではなく、注意の重み (softmax後) に適用されます。これは、「ソフト選択」で一部の接続をランダムにドロップすることに似ています。</li>
 </ul>
 <h3>インタラクティブなAttention 可視化ツール</h3>
-<p>以下の対話型ツールを使用すると、4 つのtokenに対するAttention プロセスを段階的に実行できます。 [次のステップ] をクリックして段階的に進むか、スライダーを使用して特定のtokenのクエリ ベクトルをアラインメントし、注意の分布がどのように変化するかを観察します。</p>
-<div class="toy-container" id="attn-toy"><div class="attn-grid"><div class="attn-step"><div class="step-label">Step 0: Input tokens</div><div class="token-row"><span class="token t0">I</span><span class="token t1">like</span><span class="token t2">cats</span><span class="token t3">&lt;pad&gt;</span></div></div><div class="attn-step"><div class="step-label">Step 1: QKV projection</div><div class="qkv-vis"><div class="qkv-row"><span class="qkv-label">Q</span><div class="qkv-bar" style="width:40%"></div></div><div class="qkv-row"><span class="qkv-label">K</span><div class="qkv-bar" style="width:55%"></div></div><div class="qkv-row"><span class="qkv-label">V</span><div class="qkv-bar" style="width:35%"></div></div></div></div><div class="attn-step"><div class="step-label">Step 2: Attention scores (Q·K)</div><div class="score-matrix"><div class="score-row"><span class="token-ref">I</span><span class="score s0">0.7</span><span class="score s1">0.2</span><span class="score s2">-0.1</span><span class="score s3">0.0</span></div><div class="score-row"><span class="token-ref">like</span><span class="score s0">0.3</span><span class="score s1">1.2</span><span class="score s2">0.5</span><span class="score s3">0.0</span></div><div class="score-row"><span class="token-ref">cats</span><span class="score s0">-0.2</span><span class="score s1">0.4</span><span class="score s2">0.9</span><span class="score s3">0.0</span></div><div class="score-row"><span class="token-ref">&lt;pad&gt;</span><span class="score s0">0.0</span><span class="score s1">0.0</span><span class="score s2">0.0</span><span class="score s3">0.0</span></div></div></div></div></div>
+<p>以下の対話型ツールは、4 トークンの小さな系列で Attention を<strong>実際に計算</strong>します：Q@K^T → 因果マスク → Softmax → 重み付き V。「次へ」で段階的に進めます。Q/K/V の数値は直接編集でき、変更すると即座に再計算されます。"cats" が "love" を強く参照するようにしてみましょう。</p>
+<div class="toy-container" id="attn-toy">
+<div class="toy-matrix" style="min-height:110px"></div>
+<div class="toy-controls">
+<button id="attn-step">次へ</button>
+<button id="attn-reset">リセット</button>
+</div>
+<div class="toy-log" style="font-size:0.8rem;color:#9aa3b8;margin-top:4px"></div>
+</div>
 </section><!-- ===== BLOCK ===== -->
 <section id="block">
 <h3>7. Transformer ブロックの詳細説明</h3>
