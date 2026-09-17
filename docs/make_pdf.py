@@ -27,6 +27,9 @@ RAW_PDF = os.path.join(WORK, "raw.pdf")
 FINAL_PDF = os.path.join(OUT_DIR, "minGPT学习书_审读版_A4.pdf")
 
 
+REPO_URL = "https://github.com/zixuniaowu/mingpt-learning-guide"
+
+
 def build_toc(html):
     nav = re.search(r"<nav>(.*?)</nav>", html, re.S).group(1)
     items = []
@@ -40,8 +43,16 @@ def build_toc(html):
             + "".join(items) + "</ol></section>")
 
 
+def make_qr(path):
+    import qrcode
+    img = qrcode.make(REPO_URL, box_size=8, border=2)
+    img.save(path)
+    return path
+
+
 def front_matter(html):
     today = date.today().strftime("%Y 年 %m 月")
+    qr = make_qr(os.path.join(WORK, "qr.png"))
     toc = build_toc(html)
     cover = f"""
 <section class="front-cover">
@@ -49,9 +60,19 @@ def front_matter(html):
   <div class="s">minGPT 中文可执行学习书</div>
   <div class="based">基于 Andrej Karpathy 的 minGPT（MIT License）<br>
       图解 · 可执行代码 · 训练与生成 · Scaling · AI Agent</div>
-  <div class="meta">作者：Jacky Wang<br>版本：审读版 v1.0<br>日期：{today}</div>
+  <div class="meta" style="margin-top:64px">作者：Jacky Wang<br>版本：审读版 v1.0<br>日期：{today}</div>
+  <div class="gh-box">
+    <a href="{REPO_URL}" style="text-decoration:none;color:inherit;display:flex;align-items:center;gap:24px;width:100%">
+      <img src="{os.path.basename(qr)}" alt="GitHub 二维码">
+      <div class="txt">
+        <div class="h">本书配套可执行代码 · 开源（点击访问）</div>
+        <div class="u">github.com/zixuniaowu/<br>mingpt-learning-guide</div>
+        <div class="s">扫码或访问仓库，clone 后 <b>pip install -e .</b><br>即可运行书中全部 Notebook 实验与交互版</div>
+      </div>
+    </a>
+  </div>
 </section>"""
-    meta = """
+    meta = f"""
 <section class="front-cover" style="padding-top:90px">
   <div class="t" style="font-size:20pt">本书说明</div>
   <div class="based" style="margin-top:40px; text-align:left; max-width:430px; margin-left:auto; margin-right:auto">
@@ -65,11 +86,12 @@ def front_matter(html):
   <div style="margin:36px auto 0; max-width:540px; background:#eff6ff; border:2px solid #2563eb; border-radius:14px; padding:24px 30px; text-align:center; break-inside: avoid">
     <div style="font-weight:700; color:#1d4ed8; font-size:12pt">本书配套可执行代码 · 开源</div>
     <div style="margin-top:12px; font-size:12.5pt; font-weight:700">
-      <a href="https://github.com/zixuniaowu/mingpt-learning-guide" style="color:#2563eb; text-decoration:none">github.com/zixuniaowu/mingpt-learning-guide</a>
+      <a href="{REPO_URL}" style="color:#2563eb; text-decoration:none">github.com/zixuniaowu/mingpt-learning-guide</a>
     </div>
+    <div style="margin:12px auto 0; width:110px"><img src="qr.png" style="width:110px;height:110px" alt="GitHub 二维码"></div>
     <div style="margin-top:10px; font-size:10pt; color:#5a6578; line-height:1.8">
-      clone 后执行 <b>pip install -e .</b> 即可运行<br>
-      书中全部 Notebook 实验与项目（含学习书 HTML 交互版）
+      扫码或访问仓库，clone 后执行 <b>pip install -e .</b><br>
+      即可运行书中全部 Notebook 实验与项目（含学习书 HTML 交互版）
     </div>
   </div>
   <div class="based" style="margin-top:28px; text-align:center">
@@ -110,9 +132,11 @@ def stamp_page_numbers(pdf_path):
     c = rl_canvas.Canvas(buf, pagesize=(w, h))
     for i in range(len(reader.pages)):
         if i > 0:  # skip the cover
-            c.setFont("Helvetica", 9)
+            c.setFont("Helvetica", 8)
             c.setFillColorRGB(0.45, 0.49, 0.55)
-            c.drawCentredString(w / 2, 26, f"— {i + 1} —")
+            c.drawString(46, 26, REPO_URL.replace("https://", ""))
+            c.setFont("Helvetica", 9)
+            c.drawRightString(w - 46, 26, f"— {i + 1} —")
         c.showPage()
     c.save()
 
